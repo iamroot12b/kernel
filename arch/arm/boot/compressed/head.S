@@ -113,6 +113,11 @@
 /*
  * sort out different calling conventions
  */
+ 
+ /*
+ * 여기서부터 시작
+ */
+ 
 		.align
 		.arm				@ Always enter in ARM state
 start:
