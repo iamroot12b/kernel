@@ -13,6 +13,7 @@
 *.o
 *.o.*
 *.a
+#*.s
 *.ko
 *.so
 *.so.dbg
@@ -104,3 +105,5 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+CMakeLists.txt

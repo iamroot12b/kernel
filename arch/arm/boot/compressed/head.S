@@ -1,4 +1,13 @@
 /*
+ * 분석자 : Kernel 12차 B팀 (http://www.iamroot.org)
+ * ===================================================
+ * 윤창호 : touch011@hotmail.com
+ *
+ *
+ *
+ */
+
+/*
  *  linux/arch/arm/boot/compressed/head.S
  *
  *  Copyright (C) 1996-2002 Russell King
@@ -116,6 +125,8 @@
  
  /*
  * 여기서부터 시작
+ * ref : http://www.iamroot.org/lxr/http/source/arch/arm/boot/compressed/head.S#L133
+ * 
  */
  
 		.align
