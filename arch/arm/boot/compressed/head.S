@@ -132,30 +132,119 @@
 		.align
 		.arm				@ Always enter in ARM state
 start:
+
+안녕하세요
+
+스타트라는 레이블을 펑션으로 정의하겠다.
+같은 파일 내에서만 점프 가능?
+이게 없으면 어떻게 되는가?
+파일 외부에서 호출하려면 이렇게 정의해야 한다.
+인텔에서 .global과 비슷한 것 같다는 의견이 나왔음
+샵 펑션은 그냥 상수는 아닌것 같고 어디에 정의 되어 있나?
+샵 펑션은 어디에 정의 되어있나?
+add r1, #2
 		.type	start,#function
+
+
+가스랑 인스트럭션 문서 2개를 봐야한다.
+
+?
+.rept ~ .endr 사이를 7번 반복한다.
+의미는 단지 딜레이를 주려는 의도만 있는 것은 아닌것 같다.
+얼핏 보기에는 어떤 지저분한 부트로드에서 이렇게 하지 않으면 안됐었다는 이야기가 있었는데....
+다른 의견 ) 엔젤 부트로더 등 여러가지 부트로더가 있었음 근데 월드 부트로더?
+메직 시그니쳐 이미지쪽에 시그니쳐가 있다는 이야기....가 나왔음
+파이프라인 클리어를 위한 용도도 이야기가 나왔음...
+매직 시그니쳐??
+부트로더랑 제트이미지 사이에 고유의 유니크한 값이 있는 곳이 있다고 함.
+7번인데 무브 알제로 알제로 까지 포함하면 총 8번
+4바이트 떨어진 위치에 시그니쳐가 있다고 함
+그냥 4바이트씩 어드레싱 된다고 함. 시프트?
+r0 에는 0이 들어있음...
+이렇게 이동한 이유가 히스토리를 보니 여러가지 부트로드 보았더니 호환성을 위해 이렇게 이동했다는 의견
+무브는 4바이트 이동
+암/썸 모드 암괄호는 썸모드에서 실행안됨, 역도 성립
 		.rept	7
+
 		mov	r0, r0
 		.endr
+
+밑에 암모드랑 썸모드 명령어 내용이 똑같다고 함
+예전 소스에 콜링 컨벤션 정렬? -> 링크 부탁드립니다.
+ftp://ftp.u-aizu.ac.jp/pub/os/ 나중에 완성...
    ARM(		mov	r0, r0		)
-   ARM(		b	1f		)
+암모드일경우 일에프로 이동하고 썸모드인경우 
+	ARM(		b	1f		)
+
+암모드에서 점프하면 밑에 워드는 읽히는 타이밍이 없는것 같은데....
+
+1에프를 주소를 읽어 알12에 넣고
+알12로 감
+비에스와이엠 -> 썸일때 마지막 1비트가 1이어야하는데 그거 세팅하는것 같다는 의견이 있었음
  THUMB(		adr	r12, BSYM(1f)	)
  THUMB(		bx	r12		)
+aaaaa
 
+
+안녕하세요
+
+
+덤프뜨면 헥사로 24 28 .... 링크 스크립트에 정의 되어  있다고 함.
+소스 파일에 루트/아키텍처/암/부트/컴프레스드/vmlinux.lds.s : defined 되어있음
+ 점워드는 4바이트, 변수 선언이라고 생각하면 됨
+24, 28 ....  위치에 4바이트 씩 시그니처가 것이 중요한 내용
 		.word	_magic_sig	@ Magic numbers to help the loader
 		.word	_magic_start	@ absolute load/run zImage address
 		.word	_magic_end	@ zImage end address
 		.word	0x04030201	@ endianness flag
 
- THUMB(		.thumb			)
+
+
+
+
+이건 어셈블리 지시자라 실행되는게 아님
+루트 밑에 설정.. 루트/ 바로 밑에 .config (menuconfig output file)
+어셀블러가 썸으로 해석하도록 하는 지시어.
+THUMB(		.thumb			)
 1:
+빅엔디안일 경우면 셋에디안을 빅에디안으로 바꾸어라.
+setEndian, cpu mode를 지원하기 위해서...
+암책 678쪽에 있음. 630쪽에도 있음 645~ 암모드 썸모드 명령어가 사전처럼 나와있음.
  ARM_BE8(	setend	be )			@ go BE8 if compiled for BE8
+
+cpsr 을 읽어서 서 알9에 읽음. 일반적으로 무브를 쓰는데 씨피에스알은 특이하게 엠알에스로 처리함....
+책에 그렇게 나와 있다고 함. 스페셜 레지스터는 별도 명령어로 처리함....
+그럼 일반 유저는 cpsr을 못 읽는데 왜 mov랑 구분해서 명령어가 있을까??? 숙제
+데이터/레지스터 처리 명령어가 구분되어 있다는 의견이 있었음.
 		mrs	r9, cpsr
 #ifdef CONFIG_ARM_VIRT_EXT
-		bl	__hyp_stub_install	@ get into SVC mode, reversibly
+
+커널이 가상화 설정이 되어 있으면....
+비엘이 점프해서 함수 실행하고 다시 여기로 돌아옴
+알14에 돌아올 주소 저장해 놓고 실행했다가 다시 돌아옴
+비는 그냥 고, 비엘은 고빽
+bl	__hyp_stub_install	@ get into SVC mode, reversibly
 #endif
+
+
+
+mach-arm/header.h
+root/arch/arm/tools/mach-types 에 아키텍처 아이디 목록이 정의되어 있음
+
 		mov	r7, r1			@ save architecture ID
+
+document/device/tree/booting-without-of.txt 디바이스 트리 
+환경변수 
+요즘 추세는 디티브로 설정한다고 함.
+에이테그는 환경변수 설정을 가지고 있는 데이터 모음
+soc 칩 마다 환경변수 모음을 에이테그라는 이름으로 가지고 있다함.
+todo : atags pointer 목록을 찾아보기 : 숙제
+지디 정보에 에이테그 정보들이 있다고 함...
+에이테그 -> 디티비
+root/arch/arm/boot/dts/* dts & dti files
 		mov	r8, r2			@ save atags pointer
 
+예전에 엔젤 부트로더가 있었다고 함.
 		/*
 		 * Booting from Angel - need to enter SVC mode and disable
 		 * FIQs/IRQs (numeric definitions from angel arm.h source).
