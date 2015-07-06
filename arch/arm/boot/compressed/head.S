@@ -280,10 +280,25 @@ start:
 		 */
 		mrs	r2, cpsr		@ get current mode
 		tst	r2, #3			@ not user?
+/**
+ * Usr mode 인지를 체크(test). Usr mode 일 경우에만 하위 비트가 00 임
+ */
 		bne	not_angel
+/**
+ * 특권 모드에서는 not_angel 로 분기
+ * arm debugginh mode란  host debugger 와 JTAG 를 이용한 debugging 용도로 사용됨
+ * http://www.iamroot.org/xe/Kernel_8_ARM/57324 */
+ */
 		mov	r0, #0x17		@ angel_SWIreason_EnterSVC
  ARM(		swi	0x123456	)	@ angel_SWI_ARM
  THUMB(		svc	0xab		)	@ angel_SWI_THUMB
+/**
+ * ARM(  swi 0x123456 ) @ angel_SWI_ARM
+ * The SWI number is different for ARM state and Thumb state. 
+ * By default, the SWI numbers used are: ARM state 0x123456, Thumb state 0xab 
+ * service_routine 에 넘겨주는 값 
+ * 0xff000000 : opcode, 0x00ffffff operand. Jump이기 때문에 r0,r1,r2 는 갱신하지 않음 
+ */
 /*
  * 공통 :
  * 2015/07/04 스터디 종료!!
