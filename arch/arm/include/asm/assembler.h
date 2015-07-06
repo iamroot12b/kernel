@@ -313,6 +313,7 @@
  * This macro is intended for forcing the CPU into SVC mode at boot time.
  * you cannot return to the original mode.
  */
+<<<<<<< HEAD
  /**
   * @[charles.hyunchul-JO]:2015.07.06
   check define value as below -> root/arch/arm/include/asm/ptrace.h
@@ -326,10 +327,19 @@
 	#define PSR_C_BIT	0x20000000
 	#define PSR_Z_BIT	0x40000000
 	#define PSR_N_BIT	0x80000000
+=======
+/*
+ * 공통 : 7월4일 미완료 차주 자료 추가해서 논의
+>>>>>>> 4de9132293dfebfbf6fb663600918a3c8632e15b
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
 	mrs	\reg , cpsr
+/*
+ * 공통 : HYP_MODE => cprs 에서 설정된 모드, 책에 나오지 않은 신규 모드 ...
+ * SVC 모드 보다 높은 모드 확인 필요 ~!!!!!
+ * 가상화관련 
+ */
 	eor	\reg, \reg, #HYP_MODE
 	tst	\reg, #MODE_MASK
 	bic	\reg , \reg , #MODE_MASK
