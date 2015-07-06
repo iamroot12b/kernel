@@ -313,6 +313,20 @@
  * This macro is intended for forcing the CPU into SVC mode at boot time.
  * you cannot return to the original mode.
  */
+ /**
+  * @[charles.hyunchul-JO]:2015.07.06
+  check define value as below -> root/arch/arm/include/asm/ptrace.h
+	#define PSR_F_BIT	0x00000040
+	#define PSR_I_BIT	0x00000080
+	#define PSR_A_BIT	0x00000100 //V6 arch이상 지원, 예외적으로 V7/M 미지원, Abot bit임.
+	#define PSR_E_BIT	0x00000200
+	#define PSR_J_BIT	0x01000000
+	#define PSR_Q_BIT	0x08000000
+	#define PSR_V_BIT	0x10000000
+	#define PSR_C_BIT	0x20000000
+	#define PSR_Z_BIT	0x40000000
+	#define PSR_N_BIT	0x80000000
+ */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
 	mrs	\reg , cpsr
