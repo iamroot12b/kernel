@@ -62,7 +62,7 @@ ENTRY(__boot_cpu_mode)
     /*
      * 1. cpsr을 reg1에 저장
      * 2. MODE_MASK(0x0000001f)로 processor mode(하위 5비트)만 뽑아서 reg1에 저장
-     * 3. reg2애 boot_cpu_mode_offset을 저장(?)
+     * 3. reg2에 boot_cpu_mode_offset을 저장(?)
      * 4. reg3에 reg2값 저장(?)
      * 5. reg1(cpsr의 cpu_mode만 가지고 있는)을 reg2+reg3 위치에 저장(?)
      *
