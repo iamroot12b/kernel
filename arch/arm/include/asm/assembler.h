@@ -313,9 +313,17 @@
  * This macro is intended for forcing the CPU into SVC mode at boot time.
  * you cannot return to the original mode.
  */
+/*
+ * 공통 : 7월4일 미완료 차주 자료 추가해서 논의
+ */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
 	mrs	\reg , cpsr
+/*
+ * 공통 : HYP_MODE => cprs 에서 설정된 모드, 책에 나오지 않은 신규 모드 ...
+ * SVC 모드 보다 높은 모드 확인 필요 ~!!!!!
+ * 가상화관련 
+ */
 	eor	\reg, \reg, #HYP_MODE
 	tst	\reg, #MODE_MASK
 	bic	\reg , \reg , #MODE_MASK
