@@ -303,7 +303,16 @@ start:
  * 공통 :
  * 2015/07/04 스터디 종료!!
  */
+
+ /*
+  * 2015/07/11 스터디 시작
+  */
 not_angel:
+        /*
+         * cpsr을 SVC mode로 설정하기 위한 macro
+         * arch/arm/include/asm/assembler.h에 정의
+         * macro에서 임시 저장소로 사용할 수 있도록 r0 제공
+         */
 		safe_svcmode_maskall r0
 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
 						@ SPSR

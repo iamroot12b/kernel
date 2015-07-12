@@ -319,7 +319,7 @@
   check define value as below -> root/arch/arm/include/asm/ptrace.h
 	#define PSR_F_BIT	0x00000040
 	#define PSR_I_BIT	0x00000080
-	#define PSR_A_BIT	0x00000100 //V6 arch�̻� ����, ���������� V7/M ������, Abot bit��.
+	#define PSR_A_BIT	0x00000100 //V6 arch?̻? ????, ??????��?? V7/M ??????, Abot bit??.
 	#define PSR_E_BIT	0x00000200
 	#define PSR_J_BIT	0x01000000
 	#define PSR_Q_BIT	0x08000000
@@ -333,22 +333,96 @@
 >>>>>>> 4de9132293dfebfbf6fb663600918a3c8632e15b
  */
 .macro safe_svcmode_maskall reg:req
+    /*
+     * raspberry pi 2는 LINUX_ARM_ARCH 7이고 CONFIG_CPU_V7이므로
+     * 아래의 #if directive는 true
+     */
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
-	mrs	\reg , cpsr
+    /*
+     * instruction descriptions
+     *
+     * xor : XOR 논리 연산을 이용한 비교 명령어
+     * tst : AND 논리 연산을 이용한 비교 명령어
+     * bic : 특정 비트값을 0으로 클리어
+     * orr : 32bit or 논리 연산
+     * adr : 주소값을 레지스터에 저장하는 의사 명령어
+     *       pc 상대 덧셈 뺄셈을 이용하여 주어진 label의 주소를 레지스터에 저장
+     * msr : psr 레지스터 전용 mov 명령어(쓰기)
+     * bne : branch instruction B with the condition mnemonic NE (not equal)
+     *       if the previous compare instruction sets the condition flags
+     *       to not equal, the branch instruction is executed.
+     */
 /*
  * 공통 : HYP_MODE => cprs 에서 설정된 모드, 책에 나오지 않은 신규 모드 ...
  * SVC 모드 보다 높은 모드 확인 필요 ~!!!!!
  * 가상화관련 
  */
+
+    /*
+     * cpsr을 읽어 현재 mode가 HYP_MODE인지 검사
+     * eor로 현재 HYP_MODE인 경우에만 MODE_MASK에 해당하는 bits가 모두 0이 됨
+     * tst로 HYP_MODE인 경우에만 Zero flag가 1로 설정 됨(Z)
+     */
+	mrs	\reg , cpsr
 	eor	\reg, \reg, #HYP_MODE
 	tst	\reg, #MODE_MASK
+
+    /*
+     * MODE_MASK(0x0000001F)에 해당 하는 bit를 0으로 초기화
+     * SVC_MODE를 만들기 위한 선행 작업
+     * IRQ, FIQ를 막고, SVC_MODE를 설정
+     * THUMB일때는 Thumb 비트를 turn on
+     */
 	bic	\reg , \reg , #MODE_MASK
 	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
+
+    /*
+     * 이전의 tst 비교연산에서 HYP_MODE에서만 Zero flag가 1로 설정(Z) 되었기 때문에
+     * Zero flag가 0일때(z)만 jump하는 bne는 HYP_MODE에서는 false가 되어 실행하지 않는다.
+     * 즉, HYP_MODE가 아닌경우에 1f로 jump
+     */
 	bne	1f
+
+    /*
+     * arch/arm/include/asm/unidifed.h
+     * #idfed CONFIG_THUMB2_KERNEL
+     * #define BSYM(sym)    sym + 1
+     * #else
+     * #define BSYM(sym)    sym ()
+     * #endif
+     *
+     * adr  lr, 2f + 1
+     * lr = pc relative 2f + 1
+     * lr = 2f address + 1
+     *
+     * kernel disassemble 결과
+     * 6c: 1a000004    bne 84 <not_angel+0x2c>
+     * 70: e3800c01    orr r0, r0, #256    ; 0x100
+     * 74: e28fe00c    add lr, pc, #12
+     * 78: e16ff000    msr SPSR_fsxc, r0
+     * 7c: e12ef30e    msr ELR_hyp, lr
+     * 80: e160006e    eret
+     * 84: e121f000    msr CPSR_c, r0
+     * 88: e16ff009    msr SPSR_fsxc, r9
+     */
+
+    /*
+     * abort bit(PSR_A_BIT)를 세워서 abort mode로 넘어가는 것을 막음
+     * 이후 operations에서 아마 data abort exception이 발생할 수도 있기 때문인 듯
+     * lr에는 2: label의 주소를 PC 상대 주소를 이용해 저장
+     * __MSR_ELR_HYP를 수행하고나서 돌아왔을때 1: label을 건너뛰고 2: label로 가기 위해 하는 것으로 생각 됨
+     * BSYM은 THUMB2_KERNEL 인지에 따라 주소 지정 방식이 달라서 2f + 1해주느냐 아니냐의 차이
+     * spsr의 c(control), x(extension), s(status), f(flag)에 reg 값을 저장
+     */
 	orr	\reg, \reg, #PSR_A_BIT
 	adr	lr, BSYM(2f)
 	msr	spsr_cxsf, \reg
+
+    /*
+     * 2015/07/11 스터디 종료
+     * TODO: __MSR_ELR_HYP(14),__ERET 각자 조사
+     */
 	__MSR_ELR_HYP(14)
 	__ERET
 1:	msr	cpsr_c, \reg
