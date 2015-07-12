@@ -314,6 +314,14 @@ not_angel:
          * macro에서 임시 저장소로 사용할 수 있도록 r0 제공
          */
 		safe_svcmode_maskall r0
+
+        /*
+         * r9는 앞에서 cpsr(SVC_MODE로 변경전 CPU mode)값을 저장해둔 레지스터로
+         * safe_svcmode_makeall 매크로에서 CPU mode를 SVC_MODE로
+         * 강제 변경했으므로, 여기서 이전의 CPU mode를 spsr_cxsf에 저장해 둠
+         * safe_svcmode_makeall macro 이후에 spsr에 저장한다는 의미는
+         * SVC_MODE에 banked되어 있는 spsr에 이전 CPU mode를 저장하기 위한 목적
+         */
 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
 						@ SPSR
 		/*

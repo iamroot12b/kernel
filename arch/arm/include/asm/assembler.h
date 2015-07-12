@@ -425,6 +425,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
      */
 	__MSR_ELR_HYP(14)
 	__ERET
+
+    /*
+     * HYP_MODE가 아닌 경우 1: label로 jump해서 SVC_MODE로 bit 설정해둔 
+     * reg를 cpsr_c(control)에 저장
+     * 즉, 현재 mode를 SVC_MODE로 변경
+     */
 1:	msr	cpsr_c, \reg
 2:
 #else
