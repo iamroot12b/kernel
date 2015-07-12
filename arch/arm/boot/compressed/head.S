@@ -278,6 +278,27 @@ start:
 		 * FIQs/IRQs (numeric definitions from angel arm.h source).
 		 * We only do this if we were in user mode on entry.
 		 */
+
+		/*
+		 * arch/arm/include/uapi/asm/ptrace.h에 보면 아래와 같이 정의하는데
+         * CONFIG_CPU_V7M이 아닌 경우 USR_MODE는 0x00000010이 되어 아래의 tst에서
+         * Zero bit가 z(0)이 되어 user mode임에도 :not_angel로 jump 하는것은 아닌지?
+         * 
+         * 
+         * #if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
+         * #define USR_MODE	0x00000000
+         * #define SVC_MODE	0x00000000
+         * #else
+         * #define USR_MODE	0x00000010
+         * #define SVC_MODE	0x00000013
+         * #endif
+         */
+
+		/*
+		 * USR_MODE(0x00000000)인 경우에만 하위 비트가 00
+		 * 따라서, user mode에서만 tst 검사로 Zero bit가 Z(1)이 되어
+		 * :not_angel로 jump하지 않고 다음 instruction(mov r0, #0x17)을 실행함.
+		 */
 		mrs	r2, cpsr		@ get current mode
 		tst	r2, #3			@ not user?
 /**
