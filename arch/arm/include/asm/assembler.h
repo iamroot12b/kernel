@@ -423,11 +423,39 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
      * 2015/07/11 스터디 종료
      * TODO: __MSR_ELR_HYP(14),__ERET 각자 조사
      */
+
+    /*
+     * __MSR_ELR_HYP(0xE12EF300)
+     * __ERET(0xE160006E)
+     *
+     * ELR_hyp : hyp mode does not provide its own banked copy of lr. Instead, on taking
+     *           an exception to hyp mode, the preferred return address is stored in
+     *           ELR_hyp, a 32-bit special register implemented for this purpose.
+     *           ELR_hyp can be accessed explicitly only by executing mrs(banked register),
+     *           msr(banked register).
+     *           The ERET instruction uses the value in ELR_hyp as the return address for
+     *           the exception.
+     *
+     * ERET : When executed in hyp mode, exception return loads the pc
+     *        from ELR_hyp and loads the cpsr from spsr_hyp
+     */
+
+    /*
+     * __MSR_ELR_HYP(14)는 msr (banked register) instruction으로 인코딩 됨
+     * 14는 r14(link register)를 나타내고 이를 HYP MODE에만 있는 ELR_hyp에 저장
+     * __ERET는 exception return instruction으로 인코딩 되고, HYP_MODE에서 실행될 때
+     * pc 값을 ELR_hyp로 설정하고, spsr_hyp 값을 cpsr에 설정함
+     *
+     * 즉, 위에서 lr에 2: label 주소를 저장하고, spsr에 SVC_MODE로 미리 준비해둔 상태에서
+     * __MSR_ELR_HYP를 통해 ELR_hyp에 2: label주소를 저장하고,
+     * __ERET를 통해 pc값을 2: label주소로 설정후, cpsr에 spsr값을 설정함으로써
+     * HYP_MODE에서 SVC_MODE로 전환 함
+     */
 	__MSR_ELR_HYP(14)
 	__ERET
 
     /*
-     * HYP_MODE가 아닌 경우 1: label로 jump해서 SVC_MODE로 bit 설정해둔 
+     * HYP_MODE가 아닌 경우 1: label로 jump해서 SVC_MODE로 bit 설정해둔
      * reg를 cpsr_c(control)에 저장
      * 즉, 현재 mode를 SVC_MODE로 변경
      */
