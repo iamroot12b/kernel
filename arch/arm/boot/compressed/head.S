@@ -342,6 +342,13 @@ not_angel:
          * safe_svcmode_makeall macro 이후에 spsr에 저장한다는 의미는
          * SVC_MODE에 banked되어 있는 spsr에 이전 CPU mode를 저장하기 위한 목적
          */
+         
+ 	/*
+	 * 2015/07/18 스터디 시작
+	 */
+        // 
+        // arm core power on -> bootloader가 -> svc mode or hyp mode로 셋팅하고 -> head.S 실행 -> svc mode로 복귀
+        //
 		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
 						@ SPSR
 		/*
@@ -354,16 +361,54 @@ not_angel:
 		 * by the linker here, but it should preserve r7, r8, and r9.
 		 */
 
+	// text section start. 링크스크립트에서 파일포맷 위치 지정하니까 여기로 지정
+	// 근데 왜 여기에? 링커스크립트: kernel/arch/arm/boot/compressed/vmlinux.lds.S
+	// 링크 단계에서 링커가 스크립트 참고해서 바이너리의 섹션배치함
+	// root/.config 
+	// 리눅스 툴체인 설치?해서 테스트 가능 컴파일하고 디어셈블 해보기 vmlinux.elf
 		.text
 
+// CONFIG_AUTO_ZRELADDR 압축된 zimage를 어디에 해제할것인지 zimage reload address
 #ifdef CONFIG_AUTO_ZRELADDR
+		
+		// 로드할 물리주소(부트로더에서 정한값) 자동으로 얻어옴
+		// current_PC&0xf800_0000 +0x8000
+		
 		@ determine final kernel image address
 		mov	r4, pc
+		
+		// zimage가  첫128MB 차지하니까 클리어해서 뛰어넘으려고 주소껑충껑충
+		// 0xf8000000로 & masking하면 하위비트 0으로 클리어
+		// kernel/arch/arm/boot/dts/omap3-beagle.dts:line23
+		// 마스킹하면 128M 단위로 정렬됨? 왜정렬함? homework?
+		// 다른버전 주석에 kernel image가 128M보다 작은위치에 로드되있다?고 써있음?
+		// 0x f    8    0.. ( 0x08000000 = 2^7 M =  128M )
+		//    1111 1000 0000..
+		
 		and	r4, r4, #0xf8000000
+		
+		// 칩 벤더마다 zimage 올릴위치 달라. 예로 삼성칩은 이렇게 설정함
+		// kernel/arch/arm/mach-s3c24xx/include/mach/map.h:line135
+		// /* physical addresses of all the chip-select areas */
+		// #define S3C2410_CS6 (0x30000000)
+		
+		// kernel/arch/arm/Makefile:line129
+		// # Text offset. This list is sorted numerically by address in order to
+		// # provide a means to avoid/resolve conflicts in multi-arch kernels.
+		// textofs-y	:= 0x00008000
+		
+		// #이면 상수. 
+		// makefile에서 정한 환경변수 불러옴 어떻게 불러옴? 어떻게 넘어옴? 파라미터 넘기듯이 받음?
+		// 어셈도 그렇게 받나? 파라미터 넘길때는 스택에 저장이라도 하는데 이건 걍#으로 띡
+		// 의사명령어인가? 상수값로드: arm developer's guide 87page
+		// kernel/arch/arm/kernel/Makefile 에서 d옵션으로 넘기면 받음
 		add	r4, r4, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
 #endif
+	/*
+	 * 2015/07/18 스터디 종료
+	 */
 
 		/*
 		 * Set up a page table only if it won't overwrite ourself.

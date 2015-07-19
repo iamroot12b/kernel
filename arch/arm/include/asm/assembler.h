@@ -319,7 +319,7 @@
   check define value as below -> root/arch/arm/include/asm/ptrace.h
 	#define PSR_F_BIT	0x00000040
 	#define PSR_I_BIT	0x00000080
-	#define PSR_A_BIT	0x00000100 //V6 arch?̻? ????, ??????��?? V7/M ??????, Abot bit??.
+	#define PSR_A_BIT	0x00000100 //V6 arch?̻? ????, ??????��?? V7/M ??????, Abot bit??.
 	#define PSR_E_BIT	0x00000200
 	#define PSR_J_BIT	0x01000000
 	#define PSR_Q_BIT	0x08000000
@@ -451,8 +451,23 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
      * __ERET를 통해 pc값을 2: label주소로 설정후, cpsr에 spsr값을 설정함으로써
      * HYP_MODE에서 SVC_MODE로 전환 함
      */
+
+    /*
+     * 2015/07/18 스터디 시작
+     */
 	__MSR_ELR_HYP(14)
+    /*
+     * reference: http://www.iamroot.org/xe/Kernel_10_ARM/173070
+     * __ERET 의미: hyp mode->svc mode 로 전환?복귀? exception return
+     * 	pc<-elr_hyp
+     *  cpsr<-spsr_hyp // mode 전환타이밍
+     */
+
 	__ERET
+
+    /*
+     * 2015/07/18 스터디 종료
+     */
 
     /*
      * HYP_MODE가 아닌 경우 1: label로 jump해서 SVC_MODE로 bit 설정해둔
