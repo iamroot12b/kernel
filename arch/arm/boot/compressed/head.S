@@ -386,13 +386,34 @@ not_angel:
 		// 다른버전 주석에 kernel image가 128M보다 작은위치에 로드되있다?고 써있음?
 		// 0x f    8    0.. ( 0x08000000 = 2^7 M =  128M )
 		//    1111 1000 0000..
-		
+
+        /*
+         * comment from linux-4.1.2 version
+         *
+         * Find the start of physical memory.  As we are executing
+         * without the MMU on, we are in the physical address space.
+         * We just need to get rid of any offset by aligning the
+         * address.
+         *
+         * This alignment is a balance between the requirements of
+         * different platforms - we have chosen 128MB to allow
+         * platforms which align the start of their physical memory
+         * to 128MB to use this feature, while allowing the zImage
+         * to be placed within the first 128MB of memory on other
+         * platforms.  Increasing the alignment means we place
+         * stricter alignment requirements on the start of physical
+         * memory, but relaxing it means that we break people who
+         * are already placing their zImage in (eg) the top 64MB
+         * of this range.
+         */
+
 		and	r4, r4, #0xf8000000
 		
 		// 칩 벤더마다 zimage 올릴위치 달라. 예로 삼성칩은 이렇게 설정함
 		// kernel/arch/arm/mach-s3c24xx/include/mach/map.h:line135
 		// /* physical addresses of all the chip-select areas */
 		// #define S3C2410_CS6 (0x30000000)
+        // #define S3C2410_SDRAM_PA    (S3C2410_CS6)
 		
 		// kernel/arch/arm/Makefile:line129
 		// # Text offset. This list is sorted numerically by address in order to
