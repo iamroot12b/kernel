@@ -284,6 +284,8 @@ start:
          * CONFIG_CPU_V7M이 아닌 경우 USR_MODE는 0x00000010이 되어 아래의 tst에서
          * Zero bit가 z(0)이 되어 user mode임에도 :not_angel로 jump 하는것은 아닌지?
          *
+         * answer : USR_MODE가 0x00000010이라 할지라도 하위 2비트가 00인것은 동일함.
+         *
          * #if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
          * #define USR_MODE 0x00000000
          * #define SVC_MODE 0x00000000
@@ -294,7 +296,7 @@ start:
          */
 
         /*
-         * USR_MODE(0x00000000)인 경우에만 하위 비트가 00
+         * USR_MODE(0x00000000 or 0x00000010)인 경우에만 하위 비트가 00
          * 따라서, user mode에서만 tst 검사로 Zero bit가 Z(1)이 되어
          * :not_angel로 jump하지 않고 다음 instruction(mov r0, #0x17)을 실행함.
          */
