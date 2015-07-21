@@ -319,7 +319,7 @@
   check define value as below -> root/arch/arm/include/asm/ptrace.h
 	#define PSR_F_BIT	0x00000040
 	#define PSR_I_BIT	0x00000080
-	#define PSR_A_BIT	0x00000100 //V6 arch?̻? ????, ??????��?? V7/M ??????, Abot bit??.
+	#define PSR_A_BIT	0x00000100 //! arm architecture version v6 ~ 이상 지원 가능, version v7M 제외  
 	#define PSR_E_BIT	0x00000200
 	#define PSR_J_BIT	0x01000000
 	#define PSR_Q_BIT	0x08000000
