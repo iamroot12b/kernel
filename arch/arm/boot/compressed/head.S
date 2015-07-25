@@ -426,12 +426,14 @@ not_angel:
 		// 의사명령어인가? 상수값로드: arm developer's guide 87page
 		// kernel/arch/arm/kernel/Makefile 에서 d옵션으로 넘기면 받음
 		add	r4, r4, #TEXT_OFFSET
+		/* 로드한 pc 에서 128MiB단위로 정렬해 현재 실행중인 물리주소의 베이스 주소(r4)를 계산. 그리고 r4에 커널이 풀릴 위치를 저장 */
 #else
 		ldr	r4, =zreladdr
 #endif
 	/*
 	 * 2015/07/18 스터디 종료
 	 */
+	 /* 2015/07/25 스터디 시작(주석의 내용은 모두 추정. 확신할 수 없음) */
 
 		/*
 		 * Set up a page table only if it won't overwrite ourself.
@@ -440,12 +442,18 @@ not_angel:
 		 * additional 1MB of room for a possible appended DTB.
 		 */
 		mov	r0, pc
-		cmp	r0, r4
-		ldrcc	r0, LC0+32
+		cmp	r0, r4		/* == zreladdr */
+		/* r4의 zreladdr 주소가 현재 실행중인 pc보다 큰 경우(덮어쓸 경우) 아래 코드를 실행 */
+		ldrcc	r0, LC0+32	/* == _end - restart + 16384 + 1024*1024
+						_end = .bss 섹션의 마지막. 즉, 이미지의 끝
+						16384 = 16k 페이지 디렉토리 크기
+						1024*1024 = 확보할 공간 크기. */
+					/* 결국 이미지 끝에서부터 16k+1MB 공간을 확보하는 것 같은데 `_end - restart`를 하는 이유는? 아래 코드에서 다시 pc를 더해주므로 불필요한 연산 같은데? */
 		addcc	r0, r0, pc
 		cmpcc	r4, r0
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
-		blcs	cache_on
+		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 */
+	/* 2015/07/25 스터디 종료 */
 
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
