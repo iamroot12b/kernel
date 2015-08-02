@@ -452,7 +452,9 @@ not_angel:
 		addcc	r0, r0, pc
 		cmpcc	r4, r0
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
+/* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): Start */
 		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 */
+/* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): End   */
 	/* 2015/07/25 스터디 종료 */
 
 restart:	adr	r0, LC0
@@ -843,7 +845,17 @@ params:		ldr	r0, =0x10000100		@ params_phys for RPC
  * This routine must preserve:
  *  r4, r7, r8
  */
-		.align	5
+ 
+ /* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): In progress
+ * --------------------------------------------------------
+ * cache_on lable의 시작 주소를 32byte 경계로 정렬된 주소로 정의한다.
+ * 이유는, cache line의 크기가 32byte이기 때문인 것(?)으로 추정한다.
+ */
+		.align	5	/* .align은 주소를 바이트 단위로 정렬하겠다는 의미이고,
+                                 * 그 뒤의 '5'는 32byte 단위로 정렬시키겠다는 의미이다.
+                                 * 32byte 경계로 정렬시키는 이유는 cache line의 크기가 32byte이기 때문인 것으로 추정되며,
+                                 * 이 cache_on lable의 시작 주소는 항상 32byte 경계로 정렬됨을 보장한다.
+                                 */
 cache_on:	mov	r3, #8			@ cache_on function
 		b	call_cache_fn
 
@@ -1072,21 +1084,37 @@ __common_mmu_cache_on:
  *  r12 = corrupted
  */
 
+/* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): In progress
+ * --------------------------------------------------------
+ * 현재 리눅스 커널 버전이 해당 core processor를 지원하는지를 확인한다.
+ * 분석 진행 중... (14주차 스터디 종료)
+ *
+ * Raspberry Pi 2
+ * --------------
+ * # For more information about the system control registers 'c0 ~ c15' is here
+ * 		REF: Cortex-A7 MPCore Technical Reference Manual
+ * 		LINK: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0388f/CIHCBHFB.html
+ *
+ * # For more information about c0 registers 'MIDR' filed value is here
+ *		REF: ARMv7-AR Reference Manual (Issue C)
+ *      LINK: http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0406c/index.html
+ *      PAGE: 1649
+ */
 call_cache_fn:	adr	r12, proc_types
-#ifdef CONFIG_CPU_CP15
-		mrc	p15, 0, r9, c0, c0	@ get processor ID
-#else
-		ldr	r9, =CONFIG_PROCESSOR_ID
+#ifdef CONFIG_CPU_CP15                                                  /* 해당 커널 설정 파일에서 CONFIG_CPU_CP15가 설정되어 있으면, */
+		mrc	p15, 0, r9, c0, c0	@ get processor ID      /* c0 registers의 MIDR(Op1 0: Main ID register) 필드 값을 r9로 읽어들인다. */
+#else                                                                   /* 설정되어 있지 않으면, */
+		ldr	r9, =CONFIG_PROCESSOR_ID                        /* 커널 설정 파일에 정의된 CONFIG_PROCESSOR_ID 값을 r9로 읽어들인다. */
 #endif
-1:		ldr	r1, [r12, #0]		@ get value
-		ldr	r2, [r12, #4]		@ get mask
-		eor	r1, r1, r9		@ (real ^ match)
-		tst	r1, r2			@       & mask
- ARM(		addeq	pc, r12, r3		) @ call cache function
+1:		ldr	r1, [r12, #0]		@ get value             /* proc_types: lable의 시작 주소 + (0 ~ #PROC_ENTRY_SIZE)에서 처음 상수값 (Arch ID)을 읽어들인다. */
+		ldr	r2, [r12, #4]		@ get mask              /* proc_types: lable의 시작 주소 + (0 ~ #PROC_ENTRY_SIZE)에서 두 번째 상수값 (Mask bits)을 읽어들인다. */
+		eor	r1, r1, r9		@ (real ^ match)        /* 커널이 지원하는 processor ID(proc_types lable)와 c0의 MIDR 필드 값을 exclusive or 취한 값을 r1에 저장한다.
+		tst	r1, r2			@       & mask		/* r1과 r2의 값을 비교하여 일치하면 CPSR의 'Z' flag를 '1'로, 일치하지 않으면 '0'으로 설정한다. */
+ ARM(		addeq	pc, r12, r3		) @ call cache function /* CPSR의 'Z' flag가 '1'이면 해당 core processor의 cache를 on시키기 위해 지정된 function을 호출한다. */
  THUMB(		addeq	r12, r3			)
  THUMB(		moveq	pc, r12			) @ call cache function
-		add	r12, r12, #PROC_ENTRY_SIZE
-		b	1b
+		add	r12, r12, #PROC_ENTRY_SIZE    /* 현재 읽어들인 processor ID가 일치하지 않으면, 그 다음 processor ID를 읽어들이기 위해 offset을 20byte만큼 증가시킨다. */
+		b	1b                            /* 1: lable로 다시 돌아가 c0의 MIDR 필드 값과 일치하는지 검사를 수행한다. */
 
 /*
  * Table for cache operations.  This is basically:
