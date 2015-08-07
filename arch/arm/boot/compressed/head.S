@@ -1,10 +1,9 @@
 /*
- * 분석자 : Kernel 12차 B팀 (http://www.iamroot.org)
+ * IAMROOT Kernel 12차-B팀 (http://www.iamroot.org)
  * ===================================================
- * 윤창호 : touch011@hotmail.com
- *
- *
- *
+ * 
+ * 
+ * 
  */
 
 /*
@@ -123,18 +122,19 @@
  * sort out different calling conventions
  */
  
- /*
+
+/* IAMROOT-12B:
+ * ------------
  * 여기서부터 시작
  * ref : http://www.iamroot.org/lxr/http/source/arch/arm/boot/compressed/head.S#L133
- * 
  */
  
 		.align
 		.arm				@ Always enter in ARM state
 start:
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 스타트라는 레이블을 펑션으로 정의하겠다.
  * 같은 파일 내에서만 점프 가능?
  * 이게 없으면 어떻게 되는가?
@@ -146,13 +146,9 @@ start:
  */	
 		.type	start,#function
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 가스랑 인스트럭션 문서 2개를 봐야한다.
- */
-
-/*
- * 공통 :
  * .rept ~ .endr 사이를 7번 반복한다.
  * 의미는 단지 딜레이를 주려는 의도만 있는 것은 아닌것 같다.
  * 얼핏 보기에는 어떤 지저분한 부트로드에서 이렇게 하지 않으면 안됐었다는 이야기가 있었는데....
@@ -174,22 +170,23 @@ start:
 		mov	r0, r0
 		.endr
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 밑에 암모드랑 썸모드 명령어 내용이 똑같다고 함
  * 예전 소스에 콜링 컨벤션 정렬? -> 링크 부탁드립니다.
  * ftp://ftp.u-aizu.ac.jp/pub/os/ 나중에 완성...
  */
 
 	ARM(		mov	r0, r0		)
-/*
- * 공통 :
+	
+/* IAMROOT-12B:
+ * ------------
  * 암모드일경우 일에프로 이동하고 썸모드인경우
  */
 	ARM(		b	1f		)
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 암모드에서 점프하면 밑에 워드는 읽히는 타이밍이 없는것 같은데....
  * 1에프를 주소를 읽어 알12에 넣고
  * 알12로 감
@@ -198,8 +195,8 @@ start:
 	THUMB(		adr	r12, BSYM(1f)	)
 	THUMB(		bx	r12		)
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 덤프뜨면 헥사로 24 28 .... 링크 스크립트에 정의 되어  있다고 함.
  * 소스 파일에 루트/아키텍처/암/부트/컴프레스드/vmlinux.lds.s : defined 되어있음
  * 점워드는 4바이트, 변수 선언이라고 생각하면 됨
@@ -211,32 +208,35 @@ start:
 		.word	_magic_end	@ zImage end address
 		.word	0x04030201	@ endianness flag
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 이건 어셈블리 지시자라 실행되는게 아님
  * 루트 밑에 설정.. 루트/ 바로 밑에 .config (menuconfig output file)
  * 어셀블러가 썸으로 해석하도록 하는 지시어.
  */
+ 
 	THUMB(		.thumb			)
 1:
-/*
- * 공통 :
+
+/* IAMROOT-12B:
+ * ------------
  * 빅엔디안일 경우면 셋에디안을 빅에디안으로 바꾸어라.
  * setEndian, cpu mode를 지원하기 위해서...
  * 암책 678쪽에 있음. 630쪽에도 있음 645~ 암모드 썸모드 명령어가 사전처럼 나와있음.
  */
 	ARM_BE8(	setend	be )			@ go BE8 if compiled for BE8
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * cpsr 을 읽어서 서 알9에 읽음. 일반적으로 무브를 쓰는데 씨피에스알은 특이하게 엠알에스로 처리함....
  * 책에 그렇게 나와 있다고 함. 스페셜 레지스터는 별도 명령어로 처리함....
  * 그럼 일반 유저는 cpsr을 못 읽는데 왜 mov랑 구분해서 명령어가 있을까??? 숙제
  * 데이터/레지스터 처리 명령어가 구분되어 있다는 의견이 있었음.
  */
 		mrs	r9, cpsr
-/*
- * 공통 :
+		
+/* IAMROOT-12B:
+ * ------------
  * 커널이 가상화 설정이 되어 있으면....
  * 비엘이 점프해서 함수 실행하고 다시 여기로 돌아옴
  * 알14에 돌아올 주소 저장해 놓고 실행했다가 다시 돌아옴
@@ -246,15 +246,15 @@ start:
 	bl	__hyp_stub_install	@ get into SVC mode, reversibly
 #endif
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * mach-arm/header.h
  * root/arch/arm/tools/mach-types 에 아키텍처 아이디 목록이 정의되어 있음
  */
 		mov	r7, r1			@ save architecture ID
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * document/device/tree/booting-without-of.txt 디바이스 트리 
  * 환경변수 
  * 요즘 추세는 디티브로 설정한다고 함.
@@ -267,8 +267,8 @@ start:
  */
 		mov	r8, r2			@ save atags pointer
 
-/*
- * 공통 :
+/* IAMROOT-12B:
+ * ------------
  * 예전에 엔젤 부트로더가 있었다고 함.
  * 2015/06/27 스터디 종료!!
  */
@@ -279,34 +279,37 @@ start:
 		 * We only do this if we were in user mode on entry.
 		 */
 
-        /*
-         * arch/arm/include/uapi/asm/ptrace.h에 보면 아래와 같이 정의하는데
-         * CONFIG_CPU_V7M이 아닌 경우 USR_MODE는 0x00000010이 되어 아래의 tst에서
-         * Zero bit가 z(0)이 되어 user mode임에도 :not_angel로 jump 하는것은 아닌지?
-         *
-         * answer : USR_MODE가 0x00000010이라 할지라도 하위 2비트가 00인것은 동일함.
-         *
-         * #if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
-         * #define USR_MODE 0x00000000
-         * #define SVC_MODE 0x00000000
-         * #else
-         * #define USR_MODE 0x00000010
-         * #define SVC_MODE 0x00000013
-         * #endif
-         */
-
-        /*
-         * USR_MODE(0x00000000 or 0x00000010)인 경우에만 하위 비트가 00
-         * 따라서, user mode에서만 tst 검사로 Zero bit가 Z(1)이 되어
-         * :not_angel로 jump하지 않고 다음 instruction(mov r0, #0x17)을 실행함.
-         */
+/* IAMROOT-12B:
+ * ------------
+ * arch/arm/include/uapi/asm/ptrace.h에 보면 아래와 같이 정의하는데
+ * CONFIG_CPU_V7M이 아닌 경우 USR_MODE는 0x00000010이 되어 아래의 tst에서
+ * Zero bit가 z(0)이 되어 user mode임에도 :not_angel로 jump 하는것은 아닌지?
+ *
+ * answer : USR_MODE가 0x00000010이라 할지라도 하위 2비트가 00인것은 동일함.
+ *
+ * #if defined(__KERNEL__) && defined(CONFIG_CPU_V7M)
+ * #define USR_MODE 0x00000000
+ * #define SVC_MODE 0x00000000
+ * #else
+ * #define USR_MODE 0x00000010
+ * #define SVC_MODE 0x00000013
+ * #endif
+ *
+ * USR_MODE(0x00000000 or 0x00000010)인 경우에만 하위 비트가 00
+ * 따라서, user mode에서만 tst 검사로 Zero bit가 Z(1)이 되어
+ * :not_angel로 jump하지 않고 다음 instruction(mov r0, #0x17)을 실행함.
+ */
 		mrs	r2, cpsr		@ get current mode
 		tst	r2, #3			@ not user?
-/**
+		
+/* IAMROOT-12B:
+ * ------------
  * Usr mode 인지를 체크(test). Usr mode 일 경우에만 하위 비트가 00 임
  */
 		bne	not_angel
-/**
+
+/* IAMROOT-12B:
+ * ------------
  * 특권 모드에서는 not_angel 로 분기
  * arm debugginh mode란  host debugger 와 JTAG 를 이용한 debugging 용도로 사용됨
  * http://www.iamroot.org/xe/Kernel_8_ARM/57324 */
@@ -314,126 +317,166 @@ start:
 		mov	r0, #0x17		@ angel_SWIreason_EnterSVC
  ARM(		swi	0x123456	)	@ angel_SWI_ARM
  THUMB(		svc	0xab		)	@ angel_SWI_THUMB
-/**
+ 
+/* IAMROOT-12B:
+ * ------------
  * ARM(  swi 0x123456 ) @ angel_SWI_ARM
  * The SWI number is different for ARM state and Thumb state. 
  * By default, the SWI numbers used are: ARM state 0x123456, Thumb state 0xab 
  * service_routine 에 넘겨주는 값 
  * 0xff000000 : opcode, 0x00ffffff operand. Jump이기 때문에 r0,r1,r2 는 갱신하지 않음 
  */
-/*
- * 공통 :
+ 
+/* IAMROOT-12B:
+ * ------------
  * 2015/07/04 스터디 종료!!
  */
 
- /*
-  * 2015/07/11 스터디 시작
-  */
+/* IAMROOT-12B:
+ * ------------
+ * 2015/07/11 스터디 시작
+ */
+ 
 not_angel:
-        /*
-         * cpsr을 SVC mode로 설정하기 위한 macro
-         * arch/arm/include/asm/assembler.h에 정의
-         * macro에서 임시 저장소로 사용할 수 있도록 r0 제공
-         */
+
+/* IAMROOT-12B:
+ * ------------
+ * cpsr을 SVC mode로 설정하기 위한 macro
+ * arch/arm/include/asm/assembler.h에 정의
+ * macro에서 임시 저장소로 사용할 수 있도록 r0 제공
+ */
+ 
 		safe_svcmode_maskall r0
 
-        /*
-         * r9는 앞에서 cpsr(SVC_MODE로 변경전 CPU mode)값을 저장해둔 레지스터로
-         * safe_svcmode_makeall 매크로에서 CPU mode를 SVC_MODE로
-         * 강제 변경했으므로, 여기서 이전의 CPU mode를 spsr_cxsf에 저장해 둠
-         * safe_svcmode_makeall macro 이후에 spsr에 저장한다는 의미는
-         * SVC_MODE에 banked되어 있는 spsr에 이전 CPU mode를 저장하기 위한 목적
-         */
+/* IAMROOT-12B:
+ * ------------
+ * r9는 앞에서 cpsr(SVC_MODE로 변경전 CPU mode)값을 저장해둔 레지스터로
+ * safe_svcmode_makeall 매크로에서 CPU mode를 SVC_MODE로
+ * 강제 변경했으므로, 여기서 이전의 CPU mode를 spsr_cxsf에 저장해 둠
+ * safe_svcmode_makeall macro 이후에 spsr에 저장한다는 의미는
+ * SVC_MODE에 banked되어 있는 spsr에 이전 CPU mode를 저장하기 위한 목적
+ */
          
- 	/*
-	 * 2015/07/18 스터디 시작
+/* IAMROOT-12B:
+ * ------------
+ * 2015/07/18 스터디 시작
+ *
+ *  arm core power on -> bootloader가 -> svc mode or hyp mode로 셋팅하고 -> head.S 실행 -> svc mode로 복귀
+ */
+ 
+	msr	spsr_cxsf, r9		@ Save the CPU boot mode in
+					@ SPSR
+	/*
+	 * Note that some cache flushing and other stuff may
+	 * be needed here - is there an Angel SWI call for this?
 	 */
-        // 
-        // arm core power on -> bootloader가 -> svc mode or hyp mode로 셋팅하고 -> head.S 실행 -> svc mode로 복귀
-        //
-		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
-						@ SPSR
-		/*
-		 * Note that some cache flushing and other stuff may
-		 * be needed here - is there an Angel SWI call for this?
-		 */
 
-		/*
-		 * some architecture specific code can be inserted
-		 * by the linker here, but it should preserve r7, r8, and r9.
-		 */
+	/*
+	 * some architecture specific code can be inserted
+	 * by the linker here, but it should preserve r7, r8, and r9.
+	 */
 
-	// text section start. 링크스크립트에서 파일포맷 위치 지정하니까 여기로 지정
-	// 근데 왜 여기에? 링커스크립트: kernel/arch/arm/boot/compressed/vmlinux.lds.S
-	// 링크 단계에서 링커가 스크립트 참고해서 바이너리의 섹션배치함
-	// root/.config 
-	// 리눅스 툴체인 설치?해서 테스트 가능 컴파일하고 디어셈블 해보기 vmlinux.elf
+/* IAMROOT-12B:
+ * ------------
+ * text section start. 링크스크립트에서 파일포맷 위치 지정하니까 여기로 지정
+ * 근데 왜 여기에? 링커스크립트: kernel/arch/arm/boot/compressed/vmlinux.lds.S
+ * 링크 단계에서 링커가 스크립트 참고해서 바이너리의 섹션배치함
+ * root/.config 
+ * 리눅스 툴체인 설치?해서 테스트 가능 컴파일하고 디어셈블 해보기 vmlinux.elf
+ */
+ 
 		.text
 
-// CONFIG_AUTO_ZRELADDR 압축된 zimage를 어디에 해제할것인지 zimage reload address
+/* IAMROOT-12B:
+ * ------------
+ * CONFIG_AUTO_ZRELADDR 압축된 zimage를 어디에 해제할것인지 zimage reload address
+ */
+ 
 #ifdef CONFIG_AUTO_ZRELADDR
-		
-		// 로드할 물리주소(부트로더에서 정한값) 자동으로 얻어옴
-		// current_PC&0xf800_0000 +0x8000
-		
+
+/* IAMROOT-12B:
+ * ------------
+ * 로드할 물리주소(부트로더에서 정한값) 자동으로 얻어옴
+ * current_PC&0xf800_0000 +0x8000
+ */		
+ 
 		@ determine final kernel image address
 		mov	r4, pc
-		
-		// zimage가  첫128MB 차지하니까 클리어해서 뛰어넘으려고 주소껑충껑충
-		// 0xf8000000로 & masking하면 하위비트 0으로 클리어
-		// kernel/arch/arm/boot/dts/omap3-beagle.dts:line23
-		// 마스킹하면 128M 단위로 정렬됨? 왜정렬함? homework?
-		// 다른버전 주석에 kernel image가 128M보다 작은위치에 로드되있다?고 써있음?
-		// 0x f    8    0.. ( 0x08000000 = 2^7 M =  128M )
-		//    1111 1000 0000..
 
-        /*
-         * comment from linux-4.1.2 version
-         *
-         * Find the start of physical memory.  As we are executing
-         * without the MMU on, we are in the physical address space.
-         * We just need to get rid of any offset by aligning the
-         * address.
-         *
-         * This alignment is a balance between the requirements of
-         * different platforms - we have chosen 128MB to allow
-         * platforms which align the start of their physical memory
-         * to 128MB to use this feature, while allowing the zImage
-         * to be placed within the first 128MB of memory on other
-         * platforms.  Increasing the alignment means we place
-         * stricter alignment requirements on the start of physical
-         * memory, but relaxing it means that we break people who
-         * are already placing their zImage in (eg) the top 64MB
-         * of this range.
-         */
+/* IAMROOT-12B:
+ * ------------
+ * zimage가  첫128MB 차지하니까 클리어해서 뛰어넘으려고 주소껑충껑충
+ * 0xf8000000로 & masking하면 하위비트 0으로 클리어
+ * kernel/arch/arm/boot/dts/omap3-beagle.dts:line23
+ * 마스킹하면 128M 단위로 정렬됨? 왜정렬함? homework?
+ * 다른버전 주석에 kernel image가 128M보다 작은위치에 로드되있다?고 써있음?
+ * 0x f    8    0.. ( 0x08000000 = 2^7 M =  128M )
+ *    1111 1000 0000..
+ */
+
+/* IAMROOT-12B:
+ * ------------
+ * comment from linux-4.1.2 version
+ *
+ * Find the start of physical memory.  As we are executing
+ * without the MMU on, we are in the physical address space.
+ * We just need to get rid of any offset by aligning the
+ * address.
+ *
+ * This alignment is a balance between the requirements of
+ * different platforms - we have chosen 128MB to allow
+ * platforms which align the start of their physical memory
+ * to 128MB to use this feature, while allowing the zImage
+ * to be placed within the first 128MB of memory on other
+ * platforms.  Increasing the alignment means we place
+ * stricter alignment requirements on the start of physical
+ * memory, but relaxing it means that we break people who
+ * are already placing their zImage in (eg) the top 64MB
+ * of this range.
+ */
 
 		and	r4, r4, #0xf8000000
-		
-		// 칩 벤더마다 zimage 올릴위치 달라. 예로 삼성칩은 이렇게 설정함
-		// kernel/arch/arm/mach-s3c24xx/include/mach/map.h:line135
-		// /* physical addresses of all the chip-select areas */
-		// #define S3C2410_CS6 (0x30000000)
-        // #define S3C2410_SDRAM_PA    (S3C2410_CS6)
-		
-		// kernel/arch/arm/Makefile:line129
-		// # Text offset. This list is sorted numerically by address in order to
-		// # provide a means to avoid/resolve conflicts in multi-arch kernels.
-		// textofs-y	:= 0x00008000
-		
-		// #이면 상수. 
-		// makefile에서 정한 환경변수 불러옴 어떻게 불러옴? 어떻게 넘어옴? 파라미터 넘기듯이 받음?
-		// 어셈도 그렇게 받나? 파라미터 넘길때는 스택에 저장이라도 하는데 이건 걍#으로 띡
-		// 의사명령어인가? 상수값로드: arm developer's guide 87page
-		// kernel/arch/arm/kernel/Makefile 에서 d옵션으로 넘기면 받음
+
+/* IAMROOT-12B:
+ * ------------
+ * 칩 벤더마다 zimage 올릴위치 달라. 예로 삼성칩은 이렇게 설정함
+ * kernel/arch/arm/mach-s3c24xx/include/mach/map.h:line135
+ * /* physical addresses of all the chip-select areas */
+ * #define S3C2410_CS6 (0x30000000)
+ * #define S3C2410_SDRAM_PA    (S3C2410_CS6)
+ *	
+ * kernel/arch/arm/Makefile:line129
+ * # Text offset. This list is sorted numerically by address in order to
+ * # provide a means to avoid/resolve conflicts in multi-arch kernels.
+ * textofs-y	:= 0x00008000
+ *		
+ * #이면 상수. 
+ * makefile에서 정한 환경변수 불러옴 어떻게 불러옴? 어떻게 넘어옴? 파라미터 넘기듯이 받음?
+ * 어셈도 그렇게 받나? 파라미터 넘길때는 스택에 저장이라도 하는데 이건 걍#으로 띡
+ * 의사명령어인가? 상수값로드: arm developer's guide 87page
+ * kernel/arch/arm/kernel/Makefile 에서 d옵션으로 넘기면 받음
+ */
+ 
 		add	r4, r4, #TEXT_OFFSET
-		/* 로드한 pc 에서 128MiB단위로 정렬해 현재 실행중인 물리주소의 베이스 주소(r4)를 계산. 그리고 r4에 커널이 풀릴 위치를 저장 */
+		
+/* IAMROOT-12B:
+ * ------------
+ * 로드한 pc 에서 128MiB단위로 정렬해 현재 실행중인 물리주소의 베이스 주소(r4)를 계산. 그리고 r4에 커널이 풀릴 위치를 저장 */
+ */
+
 #else
 		ldr	r4, =zreladdr
 #endif
-	/*
-	 * 2015/07/18 스터디 종료
-	 */
-	 /* 2015/07/25 스터디 시작(주석의 내용은 모두 추정. 확신할 수 없음) */
+
+/* IAMROOT-12B:
+ * ------------
+ * 2015/07/18 스터디 종료
+ */
+ 
+/* IAMROOT-12B:
+ * ------------
+ * 2015/07/25 스터디 시작(주석의 내용은 모두 추정. 확신할 수 없음) 
+ */
 
 		/*
 		 * Set up a page table only if it won't overwrite ourself.
@@ -443,19 +486,31 @@ not_angel:
 		 */
 		mov	r0, pc
 		cmp	r0, r4		/* == zreladdr */
-		/* r4의 zreladdr 주소가 현재 실행중인 pc보다 큰 경우(덮어쓸 경우) 아래 코드를 실행 */
-		ldrcc	r0, LC0+32	/* == _end - restart + 16384 + 1024*1024
-						_end = .bss 섹션의 마지막. 즉, 이미지의 끝
-						16384 = 16k 페이지 디렉토리 크기
-						1024*1024 = 확보할 공간 크기. */
-					/* 결국 이미지 끝에서부터 16k+1MB 공간을 확보하는 것 같은데 `_end - restart`를 하는 이유는? 아래 코드에서 다시 pc를 더해주므로 불필요한 연산 같은데? */
+		
+/* IAMROOT-12B:
+ * ------------ 
+ * r4의 zreladdr 주소가 현재 실행중인 pc보다 큰 경우(덮어쓸 경우) 아래 코드를 실행 
+ *
+ * LC0+32 == _end - restart + 16384 + 1024*1024
+ * _end = .bss 섹션의 마지막. 즉, 이미지의 끝
+ * 16384 = 16k 페이지 디렉토리 크기
+ * 1024*1024 = 확보할 공간 크기.
+ * 결국 이미지 끝에서부터 16k+1MB 공간을 확보하는 것 같은데 `_end - restart`를 하는 이유는? 아래 코드에서 다시 pc를 더해주므로 불필요한 연산 같은데?
+ */
+ 
+		ldrcc	r0, LC0+32
 		addcc	r0, r0, pc
 		cmpcc	r4, r0
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
+		
 /* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): Start */
 		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 */
 /* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): End   */
-	/* 2015/07/25 스터디 종료 */
+
+/* IAMROOT-12B:
+ * ------------ 
+ * 2015/07/25 스터디 종료 
+ */
 
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
