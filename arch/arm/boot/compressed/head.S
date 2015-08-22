@@ -501,17 +501,17 @@ not_angel:
 		cmpcc	r4, r0
 		orrcc	r4, r4, #1		@ remember we skipped cache_on
 		
+/* IAMROOT-12B:
+ * ------------
+ * 2015/07/25 스터디 종료
+ */
+
 /* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): Start */
  *		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 
  * bl : link register(lr) 에 복귀 주소 저장 cache_on 이후에 오는 위치
  */
 
 /* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): End   */
-
-/* IAMROOT-12B:
- * ------------ 
- * 2015/07/25 스터디 종료 
- */
 
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
@@ -1012,13 +1012,9 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  *  Physical한 start of RAM 
  */		
 
-/* IAMROOT-12B:
- * ------------
- * 2015/07/18 스터디 종료
- */
-                   mov       r9, r9, lsl #18		@ start of RAM
+/* IAMROOT-12-B,15th(2015.08.08 19:30 ~ 22:05): End   */
 
- 
+		mov	r9, r9, lsl #18		@ start of RAM
 		add	r10, r9, #0x10000000	@ a reasonable RAM size
 		mov	r1, #0x12		@ XN|U + section mapping
 		orr	r1, r1, #3 << 10	@ AP=11
@@ -1231,7 +1227,9 @@ call_cache_fn:	adr	r12, proc_types
 		tst	r1, r2			@       & mask		/* r1과 r2의 값을 비교하여 일치하면 CPSR의 'Z' flag를 '1'로, 일치하지 않으면 '0'으로 설정한다. */
  ARM(		addeq	pc, r12, r3		) @ call cache function /* CPSR의 'Z' flag가 '1'이면 해당 core processor의 cache를 on시키기 위해 지정된 function을 호출한다. */
 
-/* IAMROOT-12-B,15th(2015.08.08 19:30 ~ 22:05): In progress
+/* IAMROOT-12-B,14th(2015.08.01 19:30 ~ 22:05): End   */
+
+/* IAMROOT-12-B,15th(2015.08.08 19:30 ~ 22:05): Start
  * --------------------------------------------------------
  * eq == zflag on, (PC = r12(proc_types) + r3(0x8))  = __armv7_mmu_cache_on 
  */
