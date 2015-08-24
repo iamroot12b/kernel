@@ -1014,36 +1014,143 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 
 /* IAMROOT-12-B,15th(2015.08.08 19:30 ~ 22:05): End   */
 
+/* IAMROOT-12-B,18th(2015.08.22 18:30): Start  */
+
+ 	/*
+ 	 * r9 : Start of RAM
+ 	 * mov	r9, r0, lsr #18
+ 	 * mov	r9, r9, lsl #18
+ 	 * r10: end of RAM -> reasonable RAM size -> 256MB
+ 	 *  0x10000000 -> 268435456 -> 256MB
+ 	 */
 		mov	r9, r9, lsl #18		@ start of RAM
 		add	r10, r9, #0x10000000	@ a reasonable RAM size
+
+	/*
+ 	 * armv7-a-r-manual.pdf (p.1326) : AP[2]
+ 	 * Short-descriptor translation table first-level descriptor formats
+ 	 *  -> section
+ 	 * armv7-a-r-manual.pdf (p.1359) : XN
+ 	 *  -> B3.7.2 Execute-never restrictions on instruction fetching
+ 	 * armv7-a-r-manual.pdf (p.1358) :  AP[2] AP[1:0] -> FULL Access
+ 	 *  -> Table B3-8 VMSAv7 MMU access permissions
+ 	 *  r1 = 0x12
+ 	 *   -> r1 = 0x12 | 3*(2^10)
+ 	 *   -> r1 = 0x12 | 0xC00
+ 	 *   -> r1 = 0xC12
+ 	 */
 		mov	r1, #0x12		@ XN|U + section mapping
 		orr	r1, r1, #3 << 10	@ AP=11
-		add	r2, r3, #16384
+
+	/*
+ 	 * r3 : 0x4000 -> page directory 시작 주소
+ 	 * r2 = 0x4000 +  0x4000 (#16384(16KB))
+ 	 * r2 = 0x8000	, 압축파일이 풀릴 주소
+ 	 * r2 와 r4는 같음(zreladdr)
+  	 */
+		add	r2, r3, #16384 @ 0x4000 <- 16384(16KB)
+
+	/*
+	 * HS : 부호 없는 높거나 같음
+	 * LO : 부호 없는 낮음
+	 * r1 = 0xC12 , virt 주소
+	 * r9 = start of RAM
+	 * r10 = end of RAM
+	 * r0 =
+	 * r2 =
+	 * r6 =
+	 * U : 다른 ARM Architecture에선 XN과 유사 ?
+	 */
 1:		cmp	r1, r9			@ if virt > start of RAM
 		cmphs	r10, r1			@   && end of RAM > virt
+
+	/*
+	 * bic(bit clear) --> Rd := Rn AND NOT Operand2
+	 * r1이 값이 램 영역일 경우 : Set cacheable, bufferable
+	 * armv7-a-r-manual.pdf (p.127) : Cacheability
+	 *   --> Table A3-5 Memory attribute summary
+	 *  r1 := r1 & (1110 0011)b
+	 */
 		bic	r1, r1, #0x1c		@ clear XN|U + C + B
+
+	/*
+	 * orr --> Rd := Rn OR Operand2
+	 * r1이 값이 램 영역이 아닐 경우 : clear cacheable, bufferable
+	 * r1 := r1 | (0001 0000)b
+	 */
 		orrlo	r1, r1, #0x10		@ Set XN|U for non-RAM
+
 		orrhs	r1, r1, r6		@ set RAM section settings
 		str	r1, [r0], #4		@ 1:1 mapping
 		add	r1, r1, #1048576
+
+	/*
+	 * teq : exclusive-OR 연산
+	 * r0 = 0x4000 ~ 4byte 단위로 증가
+	 * r2 = 0x8000
+	 */
 		teq	r0, r2
 		bne	1b
+
 /*
  * If ever we are running from Flash, then we surely want the cache
  * to be enabled also for our execution instance...  We map 2MB of it
  * so there is no map overlap problem for up to 1 MB compressed kernel.
  * If the execution is in RAM then we would only be duplicating the above.
  */
+
+ /*
+  *  IAMROOT-12-B,18th(2015.08.22 22:05): End
+  */
+
+ 	/*
+ 	 * armv7-a-r-manual.pdf (p.1326) : B(Buffer) , Section[2]
+ 	 * Short-descriptor translation table first-level descriptor formats
+ 	 *  -> section
+  	 * orr Rd Rn Operand2 --> Rd := Rn OR Operand2
+ 	 * r6 = 0x0E
+	 * r1 = r6 | (0000 0100)b
+	 *  --> r1 = 0x0E
+	 */
 		orr	r1, r6, #0x04		@ ensure B is set for this
+
+ 	/*
+ 	 * r1 = r1 | [3 * (2^10)]
+	 * r1 = 0x0E | 0xC00
+	 *  --> r1 = 0xC0E
+	 */
 		orr	r1, r1, #3 << 10
+
+ 	/*
+	 * ADD{S} Rd, Rn, <Operand2>  --> Rd := Rn + Operand2
+ 	 * ADD Rd, Rn, #<imm12> --> Rd := Rn + imm12, imm12 range 0-4095
+ 	 * MOV{S} Rd, <Operand2> --> Rd := Operand2
+ 	 * str : Store Register with word
+ 	 * r2 <- pc()
+ 	 * r2 <- (r2 >>> 20회)
+ 	 * r1 = r1 | (r2 <<< 20회)
+ 	 * r0 = r3 + (r2 <<< 2회)
+ 	 */
 		mov	r2, pc
 		mov	r2, r2, lsr #20
 		orr	r1, r1, r2, lsl #20
 		add	r0, r3, r2, lsl #2
-		str	r1, [r0], #4
-		add	r1, r1, #1048576
+
+	/*
+ 	 * str X Y Z --> X가 가리키는 주소의 값을 Y+Z에 저장
+ 	 *  -> str r0, [r2], #4
+ 	 *  -> str r1, [r6], #4
+ 	 */
+		str	r1, [r0], #4  @ 1:1 mapping
+		add	r1, r1, #1048576 @ 1MB 단위 섹션으로 관리: 1048576 = 1024 * 1024
 		str	r1, [r0]
+
+	/*
+ 	 * lr은 __armv7_mmu_cache_on 레이블에서
+ 	 * blne __setup_mmu 다음 주소를 나타냄
+ 	 */
 		mov	pc, lr
+
 ENDPROC(__setup_mmu)
 
 @ Enable unaligned access on v6, to allow better code generation
