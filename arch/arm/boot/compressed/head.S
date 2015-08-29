@@ -1203,7 +1203,9 @@ __armv7_mmu_cache_on:
  * 4   - op code 2
  * (0 레지스터의 0번째 index의 Register) 와 (c1 레지스터의 4번째 index 레지스터랑) (어떤 계산을 해서) (r11 레지스터) 에 쓴다.
  * ID_MMFR0 레지스터 r11의 저장
- * Ref : http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0388f/CIHCBHFB.html
+ * Ref : http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0464d/BABIGAED.html
+ * cp15의 c0, 0, c1, 4의 기본값은 ID_MMFR0(0x10101105).
+ * 즉, r11 = 0x10101105
  */
 		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
 
