@@ -1007,7 +1007,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  */
 		mov	r9, r0, lsr #18
 
-/*  lsr : logical shift left
+/*  lsr : logical shift right
  *  결국 하위 18비트를 clear
  *  Physical한 start of RAM 
  */		
