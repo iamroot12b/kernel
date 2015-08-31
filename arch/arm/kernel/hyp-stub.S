@@ -39,37 +39,37 @@ ENTRY(__boot_cpu_mode)
 	 */
 	.macro	store_primary_cpu_mode	reg1, reg2, reg3
 
-    /*
-     * Written by Jaewon Choi (2015/07/05)
-     */
+/* ================================================ */
+/* IAMROOT-12-B,11th(2015.07.04 18:00)
+/* ================================================ */
+/* --------------------------------------------------------------------------
+ * Written by Jaewon Choi (2015/07/05)
+ *
+ * instruction descriptions
+ *
+ * mrs : moves to ARM register from a status register (cpsr or spsr).
+ * and : logical bitwise AND of two 32-bit values
+ * adr : writes a relative address into a register, which will be
+ *       encoded using a pc-relative expression.
+ *       adr is not an instruction but an assembler macro(pseudo-instruction).
+ *       assembler translates this pseudo-instruction into one or more real
+ *       instructions.
+ * ldr : writes a 32-bit constant to a register using whatever instructions
+ *       are available. It defaults to a memory read if the constant cannot
+ *       be encoded using other instruction.
+ * str : saves byte or word from a register.
+ * -------------------------------------------------------------------------- */
 
-    /*
-     * instruction descriptions
-     *
-     * mrs : moves to ARM register from a status register (cpsr or spsr).
-     * and : logical bitwise AND of two 32-bit values
-     * adr : writes a relative address into a register, which will be
-     *       encoded using a pc-relative expression.
-     *       adr is not an instruction but an assembler macro(pseudo-instruction).
-     *       assembler translates this pseudo-instruction into one or more real
-     *       instructions.
-     * ldr : writes a 32-bit constant to a register using whatever instructions
-     *       are available. It defaults to a memory read if the constant cannot
-     *       be encoded using other instruction.
-     * str : saves byte or word from a register.
-     */
-
-    /*
-     * 1. cpsr을 reg1에 저장
-     * 2. MODE_MASK(0x0000001f)로 processor mode(하위 5비트)만 뽑아서 reg1에 저장
-     * 3. reg2에 boot_cpu_mode_offset을 저장(?)
-     * 4. reg3에 reg2값 저장(?)
-     * 5. reg1(cpsr의 cpu_mode만 가지고 있는)을 reg2+reg3 위치에 저장(?)
-     *
-     * cpsr의 processor mode를 boot_cpu_mode_offset으로 지정된 위치에 저장
-     * TODO: 3~5가 구체적으로 어떻게 동작하는지 좀 더 확인 필요
-     */
-
+   /* --------------------------------------------------------------------------
+    * 1. cpsr을 reg1에 저장
+    * 2. MODE_MASK(0x0000001f)로 processor mode(하위 5비트)만 뽑아서 reg1에 저장
+    * 3. reg2에 boot_cpu_mode_offset을 저장(?)
+    * 4. reg3에 reg2값 저장(?)
+    * 5. reg1(cpsr의 cpu_mode만 가지고 있는)을 reg2+reg3 위치에 저장(?)
+    *
+    * cpsr의 processor mode를 boot_cpu_mode_offset으로 지정된 위치에 저장
+    * TODO: 3~5가 구체적으로 어떻게 동작하는지 좀 더 확인 필요
+ 	* -------------------------------------------------------------------------- */
 	mrs	\reg1, cpsr
 	and	\reg1, \reg1, #MODE_MASK
 	adr	\reg2, .L__boot_cpu_mode_offset
