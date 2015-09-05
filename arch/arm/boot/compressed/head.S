@@ -1079,6 +1079,14 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  * If the execution is in RAM then we would only be duplicating the above.
  */
 
+/* ================================================== */
+/* IAMROOT-12-B,18th(2015.08.22 22:05): End         */
+/* ================================================== */
+
+/* ================================================== */
+/* IAMROOT-12-B,19th(2015.08.29 19:30): Start         */
+/* ================================================== */
+
 	   /* -------------------------------------------------------------------
 		* armv7-a-r-manual.pdf (p.1326) : B(Buffer) , Section[2]
 		* Short-descriptor translation table first-level descriptor formats
@@ -1088,7 +1096,10 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		* r1 = r6 | (0000 0100)b
 		*  --> r1 = 0x0E
 		* ------------------------------------------------------------------- */
-		orr	r1, r6, #0x04		@ ensure B is set for this
+		orr	r1, r6, #0x04		@ ensure B is set for this 
+	   /* -------------------------------------------------------------------
+		* r6 세팅 되어 있지만 확인 차원에 세팅
+		* ------------------------------------------------------------------- */
 
 	   /* -------------------------------------------------------------------
  		* r1 = r1 | [3 * (2^10)]
@@ -1125,7 +1136,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  		* lr은 __armv7_mmu_cache_on 레이블에서
  		* blne __setup_mmu 다음 주소를 나타냄
 		* ------------------------------------------------------------------- */
-		mov	pc, lr
+		mov	pc, lr 
 
 ENDPROC(__setup_mmu)
 /* ================================================ */
@@ -1172,6 +1183,9 @@ __armv7_mmu_cache_on:
  * blne	__setup_mmu - lr주소를 바꾸므로 r12 임시저장 
  */
 		mov	r12, lr 
+	   /* -------------------------------------------------------------------
+		* restart 레이블
+		* ------------------------------------------------------------------- */
 #ifdef CONFIG_MMU
 /* MRC - coprocessor의 값을 읽어오는 instruction 
  * Format : 
@@ -1211,19 +1225,45 @@ __armv7_mmu_cache_on:
  */
 		movne	r6, #CB_BITS | 0x02	@ !XN
 		blne	__setup_mmu
+   /* -------------------------------------------------------------------
+	* MMU 세팅이후 진행
+	* ------------------------------------------------------------------- */
 
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
 		tst	r11, #0xf		@ VMSA
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+   /* -------------------------------------------------------------------
+	* DSB: wirte 할게 있으면 완료 이후 진행 (동기처리)
+	* MMU start 전 flush 
+	* ------------------------------------------------------------------- */
 #endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+   /* -------------------------------------------------------------------
+	* r0: 0x00c50878 레퍼런스 메뉴얼: 1705 p
+	* ------------------------------------------------------------------- */
 		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x003c		@ write buffer
 		bic	r0, r0, #2		@ A (no unaligned access fault)
 		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
 						@ (needed for ARM1176)
+   /* -------------------------------------------------------------------
+	* VMSA는 추상화 개념, MMU는 수행하는 장치
+	* #bic     r0, r0, #1 << 28        @ clear SCTLR.TRE 
+	* bit clear 한 이슈 조사
+	* 15번bit reserved  
+	* 레퍼런스 메뉴얼 : RR 부분 참고, 1708 p
+	* trustzone 내용 조사 (이슈)
+	* Bits[4:3] Reserved, RAO/SBOP.
+	* VMSA에 대하 조사(이슈)
+	* 아키텍쳐 버전에 따라 alignment 수행(아래줄은 호환성을 위해)
+	* alignment를 arm v6는 0.1로 설정가능
+	* alignment를 arm v7는 1로 설정 
+	* ------------------------------------------------------------------- */
+/* ================================================ */
+/*  IAMROOT-12-B,19th(2015.08.29 19:30): End
+/* ================================================ */ 
 #ifdef CONFIG_MMU
  ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
 		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
@@ -1827,3 +1867,4 @@ reloc_code_end:
 		.section ".stack", "aw", %nobits
 .L_user_stack:	.space	4096
 .L_user_stack_end:
+	
