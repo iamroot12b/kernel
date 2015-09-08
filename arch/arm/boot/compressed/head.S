@@ -1255,14 +1255,45 @@ __armv7_mmu_cache_on:
 	* 15번bit reserved  
 	* 레퍼런스 메뉴얼 : RR 부분 참고, 1708 p
 	* trustzone 내용 조사 (이슈)
+	* - s/w강화하기 위해서 맞춘 arch, mode전환(?) : arm monitor mode전환시 사용
+	* - 사용예시 : DRM module
+	* - arm 명령어 : SMC
 	* Bits[4:3] Reserved, RAO/SBOP.
 	* VMSA에 대하 조사(이슈)
 	* 아키텍쳐 버전에 따라 alignment 수행(아래줄은 호환성을 위해)
 	* alignment를 arm v6는 0.1로 설정가능
 	* alignment를 arm v7는 1로 설정 
+	* TRE bit (datasheet - 1368p 참조)
+	* - TRE bit off되어 있을 경우, TEX[2:0] & C & B bit을 참조하여 메모리 속성
+	* - TRE bit on되어 있을 경우, TEX[0] & C & B bit을 참조하여 메모리 속성
+	*   . 2 bit를 대체하기 위해 PRRR, NMRR 2bit 정보를 이용하여 메모리 속성정보 확인 가능
+	*		. TEX[2:1] 2bit에 대한 flag 처리는 양유석씨 git hub issue tab 링크 예정
+  * datasheet 1372p => The OS managed translation table bits
+	* When TEX remap is enabled, the TEX[2:1] bits in the translation table descriptors are available as two bits that can
+	* be managed by the operating system. In VMSAv7, as long as the SCTLR.TRE bit is set to 1, the values of the
+	* TEX[2:1] bits are ignored by the memory management hardware. Software can write any value to these bits in the
+	* translation tables.
+	* TR  : memory type을 의미하여 PRRR(Primary Region Remap Register)
+  * - 00 Strongly-ordered.	: 
+  * - 01 Device.						: arm core에 연결된 device(ex, flash, usb, I2C 등..)
+  * - 10 Normal Memory. 		: normal memory
+  * - 11 Reserved, effect is UNPREDICTABLE
+  * inner attributes are used to control the behaviour of the L1 caches and writes buffers. 
+  * The outer attributes are exported on the bus interface for use by the L2 memory system (e.g. a L2 cache).
+  * refer to connect -> http://community.arm.com/message/7962
 	* ------------------------------------------------------------------- */
 /* ================================================ */
 /*  IAMROOT-12-B,19th(2015.08.29 19:30): End
+/* ================================================ */
+
+/* ================================================ */
+/*  IAMROOT-12-B,20th(2015.09.05 18:20): Start
+/* ================================================ */
+   /* -------------------------------------------------------------------
+	* TRE bit on & TEX[2:0] & C & B bit => 1266 line 참고
+	* ------------------------------------------------------------------- */
+/* ================================================ */
+/*  IAMROOT-12-B,20th(2015.09.05 18:20): End
 /* ================================================ */ 
 #ifdef CONFIG_MMU
  ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
