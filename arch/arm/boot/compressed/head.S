@@ -480,8 +480,15 @@ not_angel:
 /* IAMROOT-12-B,15th(2015.08.01 22:05): End         */
 /* ================================================ */
 
+        /*
+           R0에LC0 label의 위치 저장
+        */
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
+/* ================================================ */
+/*  IAMROOT-12-B,21th(2015.09.12 22:00): End
+/* ================================================ */ 
+
 		ldr	sp, [r0, #28]
 
 		/*
@@ -1041,6 +1048,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		* r6 =
 		* U : 다른 ARM Architecture에선 XN과 유사 ?
 		* ------------------------------------------------------------------- */
+
 1:		cmp	r1, r9			@ if virt > start of RAM
 		cmphs	r10, r1			@   && end of RAM > virt
 
@@ -1281,6 +1289,13 @@ __armv7_mmu_cache_on:
   * inner attributes are used to control the behaviour of the L1 caches and writes buffers. 
   * The outer attributes are exported on the bus interface for use by the L2 memory system (e.g. a L2 cache).
   * refer to connect -> http://community.arm.com/message/7962
+  *
+  * memory type을 구분하게 된 배경
+  * Before the ARMv6 architecture, not much explicit was defined about the out-of-ordering of
+  * memory accesses — the Sequential Execution Model was assumed to apply to all instructions.
+  * Processors that implemented caches and write buffers could mark regions of memory as being
+  * cacheable or bufferable without greater side effects than the obvious ones.
+  */
 	* ------------------------------------------------------------------- */
 /* ================================================ */
 /*  IAMROOT-12-B,19th(2015.08.29 19:30): End
@@ -1295,19 +1310,70 @@ __armv7_mmu_cache_on:
 /* ================================================ */
 /*  IAMROOT-12-B,20th(2015.09.05 18:20): End
 /* ================================================ */ 
+
+/* ================================================ */
+/*  IAMROOT-12-B,21th(2015.09.12 18:30): Start
+/* ================================================ */
 #ifdef CONFIG_MMU
+/* raspberry pi2는 CONFIG_CPU_ENDIAN_BE8을 정의하지 않기 때문에 아래 ARM_BE8(...) 은
+   실행하지 않음
+   SCTLR(System Control Register) SCTLR[25] = EE(Exception Endianness)
+ */
  ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
+        /*
+           r6 : Translation Table Base Control Register (reset value : 0x00000000)
+           TTBCR determines which of the Translation Table Base Registers, TTBR0 or TTBR1
+        */
 		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
 		orrne	r0, r0, #1		@ MMU enabled
+        /* 
+           domain 0에 대해서만 client으로 지정, 나머지는 모두 Manager.
+           Domain n access permission, where n = 0 to 15. Permitted values are:
+           0b00 No access. Any access to the domain generates a Domain fault.
+           0b01 Client. Accesses are checked against the permission bits in the translation tables.
+           0b10 Reserved, effect is UNPREDICTABLE.
+           0b11 Manager. Accesses are not checked against the permission bits in the translation tables.
+
+           There are two different controls to manage a task’s access permission to memory
+           The primary control is the domain, and a secondary control is the access permission set in the page tables.
+        */
 		movne	r1, #0xfffffffd		@ domain 0 = client
+        /*
+           Use the 32-bit translation system, with the Short-descriptor translation table format.
+           In this case, the format of the TTBCR is as described in this section.
+        */
 		bic     r6, r6, #1 << 31        @ 32-bit translation system
+        /*
+           N (TTBCR[2:0])
+           If N == 0 then use TTBR0. Setting TTBCR.N to zero disables use of a second set of translation tables.
+           if N > 0 then
+               if bits[31:32-N] of the input VA are all zero then use TTBR0
+               otherwise use TTBR1.
+        */
 		bic     r6, r6, #3 << 0         @ use only ttbr0
+        /*
+           r3 : page directory start address
+           ttbr0에 page directory start address 지정
+        */
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
 		mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
 #endif
+        /*
+            ISB(Instruction Synchronization Barrier operation)
+            In ARMv7, ARM deprecates any use of these CP15 c7 operations,
+            and strongly recommends that software uses the ISB, DSB, and DMB instructions instead.
+            CP15 c7 대신 isb를 써야하는거 아닌가?
+        */
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
+        /*
+           load control register를 수행하는 순간, cache, mmu를 켠다.
+        */
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
+        /*
+            SCTLR(System Control Register)을 다시 읽자마자 0으로 초기화?
+            어떤 의미? 그리고 ISB?
+        */
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
