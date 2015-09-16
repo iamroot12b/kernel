@@ -1326,7 +1326,8 @@ __armv7_mmu_cache_on:
         */
 		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
 		orrne	r0, r0, #1		@ MMU enabled
-        /* 
+        /*
+           DACR(Domain Access Control Register, VMSA) : defines the access permission for each of the sixteen memory domains
            domain 0에 대해서만 client으로 지정, 나머지는 모두 Manager.
            Domain n access permission, where n = 0 to 15. Permitted values are:
            0b00 No access. Any access to the domain generates a Domain fault.
