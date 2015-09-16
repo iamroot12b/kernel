@@ -1351,7 +1351,7 @@ __armv7_mmu_cache_on:
                if bits[31:32-N] of the input VA are all zero then use TTBR0
                otherwise use TTBR1.
         */
-		bic     r6, r6, #3 < 0         @ use only ttbr0
+		bic     r6, r6, #3 << 0         @ use only ttbr0
         /*
            r3 : page directory start address. 0x4000, ttbr0
            DACR에 d0 - client, others - manager 지정
