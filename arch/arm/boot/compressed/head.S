@@ -482,6 +482,15 @@ not_angel:
 
         /*
            R0에LC0 label의 위치 저장
+	   r1  : LC0
+	   r2  : __bss_start
+	   r3  : _end
+	   r6  : _edata
+	   r10 : input_data_end - 4
+	   r11 : _got_Start
+	   r12 : _got_end
+
+	   r4  : 0x8000 : 압축 풀릴 위치
         */
 restart:	adr	r0, LC0
 		ldmia	r0, {r1, r2, r3, r6, r10, r11, r12}
@@ -489,12 +498,35 @@ restart:	adr	r0, LC0
 /*  IAMROOT-12-B,21th(2015.09.12 22:00): End
 /* ================================================ */ 
 
+/* ================================================ */
+/*  IAMROOT-12-B,22th(2015.09.19 19:00): Start      */
+/* ================================================ */
+		/* 왜 바로 위 ldmia 명령으로 sp를 함께 로드하지 않고 아래 ldr
+		 * 명령으로 따로 구분지어 수행하나? issue #9 */
+		/* adr r0, LC0 == r0 = 0x240
+		   r1  = 0x240    : LC0
+		   r2  = 0x3a26b8 : __bss_start
+		   r3  = 0x3a26d4 : _end
+		   r6  = 0x3a26b8 : _edata
+		   r10 = 0x3a267b : input_data_end - 4
+		   r11 = 0x3a268c : _got_start
+		   r12 = 0x3a26b4 : _got_end
+		   sp  = 0x3a36d8 : .stack + 4096 (.L_user_stack_end)
+		         0x4a6614 : _end - restart + 16384 + 1024*1024
+		*/
+		/* [r0, #28] == .L_user_stack_end : head.S 마지막(이미지의 끝;
+		 * .stack 섹션은 링커스크립트 마지막에 위치)에 4KB가 스택으로
+		 * 할당되어 있음 */
 		ldr	sp, [r0, #28]
 
 		/*
 		 * We might be running at a different address.  We need
 		 * to fix up various pointers.
 		 */
+		 /* 추정: 텍스트 영역의 LC0 주소를 읽어들여(adr r0, LC0) 램으로
+		  * 로드된 LC0 값과의(ldmia ...) 옵셋을 계산(sub r0, r0, r1). */
+		 /* 계산한 옵셋을 _edata와 input_data_end에 보상해주는데, 왜
+		  * data 영역만 보상해주는가? issue #10 */
 		sub	r0, r0, r1		@ calculate the delta offset
 		add	r6, r6, r0		@ _edata
 		add	r10, r10, r0		@ inflated kernel size location
@@ -504,18 +536,31 @@ restart:	adr	r0, LC0
 		 * decompressed kernel at the end of the compressed data
 		 * in little-endian form.
 		 */
+		/* "head.o + misc.o + piggy.gzip"의 사이즈를 압축된
+		 * 데이터(piggydata)의 끝(input_data_end)에 추가(아래 코드에서
+		 * 구한 r9). 바로 위 주석에서는 "압축되지 않은 커널의 크기를
+		 * 압축된 데이터 끝에 추가한다"라고 하는데, 여기서 구한 커널
+		 * 사이즈는 압축된 piggy.gzip을 포함하는게 아닌가? 압축되지
+		 * 않은 커널 사이즈라니? issue #11 */
+		/* r10 : input_data_end - 4 */
 		ldrb	r9, [r10, #0]
 		ldrb	lr, [r10, #1]
 		orr	r9, r9, lr, lsl #8
+		/* r9 = (lr << 8) | r9 ; 하위 2바이트 */
 		ldrb	lr, [r10, #2]
 		ldrb	r10, [r10, #3]
 		orr	r9, r9, lr, lsl #16
+		/* r9 = (lr << 16) | r9 ; 상위 1바이트 | 하위 2바이트*/
 		orr	r9, r9, r10, lsl #24
+		/* r9 = (r10 << 24) | r9 ; 최상위 바이트 | 나머지 3바이트 */
+		/* r9 = input_data_end의 주소(즉 이미지 크기; _etext와 동일)
+		엔디안 종류에 상관없이 크기는 무조건 리틀 엔디안으로 저장 */
 
 #ifndef CONFIG_ZBOOT_ROM
 		/* malloc space is above the relocated stack (64k max) */
 		add	sp, sp, r0
 		add	r10, sp, #0x10000
+		/* r10에 64K 크기의 힙 영역 확보 */
 #else
 		/*
 		 * With ZBOOT_ROM the bss/stack is non relocatable,
@@ -526,6 +571,8 @@ restart:	adr	r0, LC0
 #endif
 
 		mov	r5, #0			@ init dtb size to 0
+		/* 타겟인 라즈베리파이에 설정되지 않은 옵션인데다가 DTB 내용은
+		 * 향후 다룰 예정이라 아래 코드는 분석하지 않고 건너뜀 */
 #ifdef CONFIG_ARM_APPENDED_DTB
 /*
  *   r0  = delta
@@ -643,7 +690,7 @@ restart:	adr	r0, LC0
 		add	r10, r10, r5
 		add	sp, sp, r5
 dtb_check_done:
-#endif
+#endif /* CONFIG_ARM_APPENDED_DTB */
 
 /*
  * Check to see if we will overwrite ourselves.
@@ -655,13 +702,49 @@ dtb_check_done:
  *   r4 + image length <= address of wont_overwrite -> OK
  * Note: the possible LSB in r4 is harmless here.
  */
+	/* 현재까지의 메모리 맵:
+		   ===================================    <-------- r10
+	          |                                   | ^
+	          |           not known yet           | | 16KiB
+	          |                                   | v
+	           -----------------------------------  -
+	                            ~                   ^
+	          |               heap                | | 64KiB
+	                            ~                   v
+	           -----------------------------------  -
+	          |               stack               | > 4KiB
+	           -----------------------------------  - <-------- r9(input_data_end)
+	                            ~                   ^
+	          |               IMAGE(vmlinux)      | | ~4MiB
+	                            ~                 | v
+	0x8000(r4) -----------------------------------  -
+	          |                                   | ^
+	          |             PAGE_TABLE            | | 16KiB
+	          |                                   | v
+	0x4000     -----------------------------------  -
+	          |                                   | ^
+	          |                                   | | 16KiB
+	          |                                   | v
+	           -----------------------------------  -
+	   */
+
+	/* 커널 풀릴 위치(r4)가 현재 이미지의 끝(r10) 보다 크다면 안전
+	   우리의 타겟보드인 라즈베리 파이의 경우 거짓(r4 < r10) */
 		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
+	/* 또는, 커널 풀릴 위치 + 이미지 사이즈가 wont_overwrite 위치보다
+	 * 작다면 안전; wont_overwrite 까지는 이미 실행된 코드이기 때문에
+	 * 덮어쓰여도 상관없음
+	   우리의 타겟보드인 라즈베리 파이의 경우 거짓(r10 > r9) */
 		add	r10, r4, r9
 		adr	r9, wont_overwrite
 		cmp	r10, r9
 		bls	wont_overwrite
+
+/* ================================================ */
+/*  IAMROOT-12-B,22th(2015.09.19 22:00): End        */
+/* ================================================ */
 
 /*
  * Relocate ourselves past the end of the decompressed kernel.
