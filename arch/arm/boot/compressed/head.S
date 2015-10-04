@@ -746,6 +746,11 @@ dtb_check_done:
 /*  IAMROOT-12-B,22th(2015.09.19 22:00): End        */
 /* ================================================ */
 
+
+/* ================================================ */
+/*  IAMROOT-12-B,24th(2015.10.03 19:00): Start      */
+/* ================================================ */
+
 /*
  * Relocate ourselves past the end of the decompressed kernel.
  *   r6  = _edata
@@ -758,12 +763,21 @@ dtb_check_done:
 		 * the relocation code added. This avoids overwriting
 		 * ourself when the offset is small.
 		 */
-		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)
-		bic	r10, r10, #255
+
+		/* IAMROOT-12-B
+		 * reloc_code_end: 0x00000928
+		 * restart:        0x00000188
+		 * L775: r10 = r10 + (0x928 - 0x188 + 256) & 0xFFFFFF00
+		 * L776: r10 = r10 & 0xFFFFFF00
+		 * L779: r5  = 0xC0(restart)
+		 * L780: r5  = r5(0xC0) & 0xFFFFFFE0
+		 */
+		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)	@ r10 + 0x800
+		bic	r10, r10, #255	@ (r10 + 0x800) & 0xFF /* Align of 256byte */
 
 		/* Get start of code we want to copy and align it down. */
-		adr	r5, restart
-		bic	r5, r5, #31
+		adr	r5, restart		@ 0xC0
+		bic	r5, r5, #31		@ 0xC0 /* Align of 32byte */
 
 /* Relocate the hyp vector base if necessary */
 #ifdef CONFIG_ARM_VIRT_EXT
@@ -779,12 +793,48 @@ dtb_check_done:
 1:
 #endif
 
+		/* IAMROOT-12-B
+		 * L802: r9(0x3A25F8) = 0x3A26B8(_edata) - 0xC0(restart)
+		 * L803: r9(0X3A2617) = 0x3A25F8 + 0xFFFFFFE0
+		 * L804: r9(0x3A2600) = 0x3A2617 & 0xFFFFFFE0
+		 * L805: r6(0x3A26C0) = 0x3A2600(r9) + 0xC0(restart)
+		 * L806: r9 = 0x3A2600(r9) + (r10 + 0x800)
+		 */
 		sub	r9, r6, r5		@ size to copy
 		add	r9, r9, #31		@ rounded up to a multiple
 		bic	r9, r9, #31		@ ... of 32 bytes
 		add	r6, r9, r5
 		add	r9, r9, r10
 
+		/* IARMROOT-12-B
+		 * 32byte 단위로 재정렬된 r6의 주소부터 하위 32byte를 r0 - r3,
+		 * r10 - r12, lr에 저장하고 다시 r9의 주소부터 하위 32byte 영역에 값을 로드한다.
+		 */
+
+		/* 현재까지의 메모리 맵:
+		       ----------------------------------- <--- r9 (Align of 32byte)
+			  |          r9 = r6 - r5            |
+			  |          r9 = (r9 + 31) & 31     |
+			  |          r9 = r9 + r10           |
+			   ----------------------------------- <--- r10 (Align f 256byte)
+			  |  (reloc_code_end - restart + 256) |
+			  |               & ~255              |
+		       ----------------------------------- 
+	          |           not known yet           | | 16KiB
+	           -----------------------------------  -
+	          |               heap                | | 64KiB
+	           -----------------------------------  -
+	          |               stack               | > 4KiB
+               ----------------------------------- <--- r6 (Align of 32byte)
+			  |            pad + _edata           |
+			   -----------------------------------
+	          |               IMAGE(vmlinux)      | | ~4MiB
+	0x8000(r4) -----------------------------------  -
+	          |             PAGE_TABLE            | | 16KiB
+	0x4000     -----------------------------------  -
+	          |                                   | | 16KiB
+	           -----------------------------------  -
+	   	*/
 1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
 		stmdb	r9!, {r0 - r3, r10 - r12, lr}
@@ -797,6 +847,11 @@ dtb_check_done:
 		/* cache_clean_flush may use the stack, so relocate it */
 		add	sp, sp, r6
 #endif
+
+/* ================================================ */
+/*  IAMROOT-12-B,24th(2015.10.03 22:00): End        */
+/* ================================================ */
+
 
 		bl	cache_clean_flush
 
