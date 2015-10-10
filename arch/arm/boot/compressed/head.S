@@ -765,9 +765,9 @@ dtb_check_done:
 		 */
 
 		/* IAMROOT-12-B
-		 * reloc_code_end: 0x00000928
-		 * restart:        0x00000188
-		 * L775: r10 = r10 + (0x928 - 0x188 + 256) & 0xFFFFFF00
+		 * reloc_code_end: 0x928
+		 * restart:        0xC0
+		 * L775: r10 = r10 + (0x928 - 0xC0 + 256) & 0xFFFFFF00
 		 * L776: r10 = r10 & 0xFFFFFF00
 		 * L779: r5  = 0xC0(restart)
 		 * L780: r5  = r5(0xC0) & 0xFFFFFFE0
