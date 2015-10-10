@@ -772,8 +772,8 @@ dtb_check_done:
 		 * L779: r5  = 0xC0(restart)
 		 * L780: r5  = r5(0xC0) & 0xFFFFFFE0
 		 */
-		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)	@ r10 + 0x800
-		bic	r10, r10, #255	@ (r10 + 0x800) & 0xFF /* Align of 256byte */
+		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)	@ r10 + 0x900
+		bic	r10, r10, #255	@ (r10 + 0x900) & 0xFF /* Align of 256byte */
 
 		/* Get start of code we want to copy and align it down. */
 		adr	r5, restart		@ 0xC0
