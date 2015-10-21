@@ -462,6 +462,10 @@ not_angel:
 		* 1024*1024 = 확보할 공간 크기.
 		* 결국 이미지 끝에서부터 16k+1MB 공간을 확보하는 것 같은데 `_end - restart`를 하는 이유는?
 		* 아래 코드에서 다시 pc를 더해주므로 불필요한 연산 같은데?
+		* 커널를 풀어서 실행시킬 이미지 위치가 현재 코드의 위치보다 아래 있으면
+		* r0의 위치를 code size + page directory(16k) + DTB사이즈로 추정(1MB)
+		* 로 옮기게끔 r0에 1로 "표시"를 함
+		*
  		* -------------------------------------------------------------------------- */
  		ldrcc	r0, LC0+32
 		addcc	r0, r0, pc
@@ -526,7 +530,10 @@ restart:	adr	r0, LC0
 		 /* 추정: 텍스트 영역의 LC0 주소를 읽어들여(adr r0, LC0) 램으로
 		  * 로드된 LC0 값과의(ldmia ...) 옵셋을 계산(sub r0, r0, r1). */
 		 /* 계산한 옵셋을 _edata와 input_data_end에 보상해주는데, 왜
-		  * data 영역만 보상해주는가? issue #10 */
+		  * data 영역만 보상해주는가? issue #10 
+		  * r0이 현재 = 0x8240 r1 = 0x240
+		  * offset이 8000이됨
+		  */
 		sub	r0, r0, r1		@ calculate the delta offset
 		add	r6, r6, r0		@ _edata
 		add	r10, r10, r0		@ inflated kernel size location
@@ -543,7 +550,7 @@ restart:	adr	r0, LC0
 		 * 사이즈는 압축된 piggy.gzip을 포함하는게 아닌가? 압축되지
 		 * 않은 커널 사이즈라니? issue #11 */
 		/* r10 : input_data_end - 4 */
-		ldrb	r9, [r10, #0]
+		ldrb	r9, [r10, #0] 
 		ldrb	lr, [r10, #1]
 		orr	r9, r9, lr, lsl #8
 		/* r9 = (lr << 8) | r9 ; 하위 2바이트 */
@@ -699,13 +706,14 @@ dtb_check_done:
  *   r10 = end of this image, including  bss/stack/malloc space if non XIP
  * We basically want:
  *   r4 - 16k page directory >= r10 -> OK
+ *   r4 >= r10 + 16k
  *   r4 + image length <= address of wont_overwrite -> OK
  * Note: the possible LSB in r4 is harmless here.
  */
 	/* 현재까지의 메모리 맵:
 		   ===================================    <-------- r10
 	          |                                   | ^
-	          |           not known yet           | | 16KiB
+	          |           Page directory (?)      | | 16KiB
 	          |                                   | v
 	           -----------------------------------  -
 	                            ~                   ^
@@ -852,9 +860,20 @@ dtb_check_done:
 /*  IAMROOT-12-B,24th(2015.10.03 22:00): End        */
 /* ================================================ */
 
+/* ================================================ */
+/*  IAMROOT-12-B,25th(2015.10.17 15:00): Start      */
+/* ================================================ */
 
 		bl	cache_clean_flush
 
+		/* 
+		 * BSYM() - 모드전환이 일어나지 않도록 CPU instruction
+		 * 의 최하위 비트를 조정함.
+		 *
+		 * 만약 Thumb 모드일때 BSYM Macro가 없다면 최하위 비트가 
+		 * 0인 상태로 Instruction이 실행되므로 ARM모드로 원치않은
+		 * 변환이 일어나게 됨.
+		 */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
 		mov	pc, r0
@@ -1888,17 +1907,30 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
+		/* 
+		 * r4 - 압축풀 시작 위치  
+		 * 1 - cache_on을 안했다는 표시 
+		 * 표시가 안되어 있는 상태(cache ON 상태)
+		 */
 __armv7_mmu_cache_flush:
 		tst	r4, #1
-		bne	iflush
+		bne	iflush /* Jump 안됨 */
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
 		beq	hierarchical
+		/* 만약에 Harvard architecture 라면 */
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
+
 hierarchical:
+		/* 만약에 Harvard architecture 아니라면 */
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+
+/* ================================================ */
+/* IAMROOT-12-B,13th(2015.10.17 22:00): Ongoing
+/* ================================================ */
+
 		stmfd	sp!, {r0-r7, r9-r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
