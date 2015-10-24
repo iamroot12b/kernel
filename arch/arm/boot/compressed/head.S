@@ -1888,13 +1888,33 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
+/* ================================================== */
+/* IAMROOT-12-B,27th(2015.10.24 16:30): Start         */
+/* ================================================== */
 __armv7_mmu_cache_flush:
+/* r4 = decompress kernel position (0x8000)
+ * #1의 값은 해당 주소에 marking값을 비교, marking되어 있으면 cache on이 되어있지 않음.
+ */
 		tst	r4, #1
+/* raspberry pi2의 경우, marking되어 있지 않으므로 비교연산 수행 결과 값 : 0
+ * nzcvq flga중 z flag value = 1, 비교연산자 결과 값 확인하여 ne 수행x, eq 수행
+ */
 		bne	iflush
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
+/* coprocessor MMFR1값을 읽어 r10 = 0x40000000
+ * arm v7 reference manual 1622page 
+ * desc : For execution correctness, branch predictor requires no flushing at any time.
+ *				[추정]
+ *        현재 line에서는 r10 = 0x40000000, ID_MMFR1 값을 read시
+ *        cache flush를 수행할 수 없는 상태로 추정 그이유는 상위 2번째 bit만 on
+ *				b0100 값은 "desc" 참조내용을 해석컨데, hierarchical 함수 수행 후
+ *				cache flush를 수행하는 것으로 추정됨.
+ *				hierarchical 함수 분석 후 정리 필요
+*/
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
 		beq	hierarchical
+/* IAMROOT-12-B, arm v7 arch reference manual 2532 page */
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
 hierarchical:
@@ -1906,6 +1926,7 @@ hierarchical:
 		beq	finished		@ if loc is 0, then no need to clean
 		mov	r10, #0			@ start clean at cache level 0
 loop1:
+/* IAMROOT-12-B, get cache type */
 		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
 		mov	r1, r0, lsr r2		@ extract cache type bits from clidr
 		and	r1, r1, #7		@ mask of the bits for current cache only
