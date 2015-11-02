@@ -488,7 +488,7 @@ not_angel:
  		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 
  						  * bl : link register(lr) 에 복귀 주소 저장 cache_on 이후에 오는 위치
  						  */
-/* ================================================ */
+/* ================================================ */작
 /* IAMROOT-12-B,15th(2015.08.01 22:05): End         */
 /* ================================================ */
 
@@ -513,6 +513,12 @@ restart:	adr	r0, LC0
 /* ================================================ */
 /*  IAMROOT-12-B,22th(2015.09.19 19:00): Start      */
 /* ================================================ */
+
+		/*
+		 * 2번째 restart 주석
+		 * 재배치된 LC0의 값들이 레지스터에 저장됨
+		 */
+
 		/* 왜 바로 위 ldmia 명령으로 sp를 함께 로드하지 않고 아래 ldr
 		 * 명령으로 따로 구분지어 수행하나? issue #9 */
 		/* adr r0, LC0 == r0 = 0x240
@@ -542,6 +548,15 @@ restart:	adr	r0, LC0
 		  * r0이 현재 = 0x8240 r1 = 0x240
 		  * offset이 8000이됨
 		  */
+
+		/*
+		 * 2번째 restart 주석
+		 * r0 현재 실행 위치의 LC0
+		 * r1 기존 위치의 LC0
+		 * 따라서 r0에는 기존 이미지와 이사한 zImage 간의 오프셋 크기가 저장됨
+		 * 그럼 _data 위치도 이동되고 커널 사이즈 정보를 가지고 있는 위치도 이동됨
+		 */
+
 		sub	r0, r0, r1		@ calculate the delta offset
 		add	r6, r6, r0		@ _edata
 		add	r10, r10, r0		@ inflated kernel size location
@@ -744,6 +759,12 @@ dtb_check_done:
 	           -----------------------------------  -
 	   */
 
+	/*
+	 * 2번째 restart 주석
+	 * 처음 조건에서는 wont_overwrite 로 안감, r4가 r10 보다 크지 않기 때문
+	 * 두번째 조건에서는 wont_overwrite로 점
+	 */
+
 	/* 커널 풀릴 위치(r4)가 현재 이미지의 끝(r10) 보다 크다면 안전
 	   우리의 타겟보드인 라즈베리 파이의 경우 거짓(r4 < r10) */
 		add	r10, r10, #16384
@@ -835,21 +856,21 @@ dtb_check_done:
 			   ----------------------------------- <--- r10 (Align f 256byte)
 			  |  (reloc_code_end - restart + 256) |
 			  |               & ~255              |
-		           ----------------------------------- 
-	                  |           not known yet           | | 16KiB
-	                   -----------------------------------  -
-	                  |               heap                | | 64KiB
-	                   -----------------------------------  -
-	                  |               stack               | > 4KiB
-                           ----------------------------------- <--- r6 (Align of 32byte)
+	           ----------------------------------- 
+              |           not known yet           | | 16KiB
+               -----------------------------------  -
+              |               heap                | | 64KiB
+               -----------------------------------  -
+              |               stack               | > 4KiB
+               ----------------------------------- <--- r6 (Align of 32byte)
 			  |            pad + _edata           |
 			   -----------------------------------
-	                  |               IMAGE(vmlinux)      | | ~4MiB
-	        0x8000(r4) -----------------------------------  -
-	                  |             PAGE_TABLE            | | 16KiB
-	        0x4000     -----------------------------------  -
-	                  |                                   | | 16KiB
-	                   -----------------------------------  -
+              |               IMAGE(vmlinux)      | | ~4MiB
+    0x8000(r4) -----------------------------------  -
+              |             PAGE_TABLE            | | 16KiB
+    0x4000     -----------------------------------  -
+              |                                   | | 16KiB
+               -----------------------------------  -
 	   	*/
 1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
@@ -867,7 +888,7 @@ dtb_check_done:
 /* ================================================ */
 /*  IAMROOT-12-B,24th(2015.10.03 22:00): End        */
 /* ================================================ */
-
+프
 /* ================================================ */
 /*  IAMROOT-12-B,25th(2015.10.17 15:00): Start      */
 /* ================================================ */
@@ -881,6 +902,10 @@ dtb_check_done:
 		 * 만약 Thumb 모드일때 BSYM Macro가 없다면 최하위 비트가 
 		 * 0인 상태로 Instruction이 실행되므로 ARM모드로 원치않은
 		 * 변환이 일어나게 됨.
+		 */
+
+		/*
+		 * 여기 restart 레이블은 이사하기 전 restart 이고 r6(이사한 zImage 와의 offset)을 더하여 새로운 restart 레이블에서 시
 		 */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
@@ -900,8 +925,18 @@ wont_overwrite:
  *   r12 = GOT end
  *   sp  = stack pointer
  */
+
+		/*
+		 * r1에서 이사한 위치로 dtb 주소 재지정
+		 * orr 결과가 0이 아니기 때문에 z 플래그는 0이 아니라 not_relocated 안탐
+		 */
+
 		orrs	r1, r0, r5
 		beq	not_relocated
+
+		/*
+		 * global offset table 주소 오프셋 만큼 이동
+		 */
 
 		add	r11, r11, r0
 		add	r12, r12, r0
@@ -912,8 +947,18 @@ wont_overwrite:
 		 * we need to fix up pointers into the BSS region.
 		 * Note that the stack pointer has already been fixed up.
 		 */
+
+		/*
+		 * bss 시작 및 끝 주소도 이동
+		 */
+
 		add	r2, r2, r0
 		add	r3, r3, r0
+
+
+		/*
+		 * GOT 항목들을 반복하면서 재배치된 주소로 값을 새로 조정함(오프셋 만큼 더함)
+		 */
 
 		/*
 		 * Relocate all entries in the GOT table.
@@ -927,6 +972,11 @@ wont_overwrite:
 		str	r1, [r11], #4		@ next entry
 		cmp	r11, r12
 		blo	1b
+
+		/*
+		 * bss 주소를 dtb 정보만큼 더함
+		 * got 와 bss 사이에 dtb 정보가 위치하는 것으로 보이는데 확인 필요함
+		 */
 
 		/* bump our bss pointers too */
 		add	r2, r2, r5
@@ -947,6 +997,10 @@ wont_overwrite:
 		blo	1b
 #endif
 
+		/*
+		 * bss 영역 모두 0으로 초기화
+		 */
+
 not_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
@@ -956,6 +1010,11 @@ not_relocated:	mov	r0, #0
 		blo	1b
 
 		/*
+		 * 0이라서 cache_on 은 안탐
+		 * bic 하는 이유는 r4 값을 0x8000 으로 되돌리기 위함
+		 */
+
+		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
 		 * Do it now if so.
@@ -963,6 +1022,14 @@ not_relocated:	mov	r0, #0
 		tst	r4, #1
 		bic	r4, r4, #1
 		blne	cache_on
+
+		/*
+		 * r0 = 0x8000
+		 * r1 = sp
+		 * r2 + sp + 64k
+		 * r3 = architecture id
+		 * misc.c 로 넘어감
+		 */
 
 /*
  * The C runtime environment should now be setup sufficiently.
