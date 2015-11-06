@@ -1950,24 +1950,72 @@ hierarchical:
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
 
 /* ================================================ */
-/* IAMROOT-12-B,13th(2015.10.17 22:00): Ongoing	    */
+/* IAMROOT-12-B,27th(2015.10.24 22:00): End	    */
+/* ================================================ */
+/* ================================================ */
+/* IAMROOT-12-B,28th(2015.10.31 18:50): Start	    */
 /* ================================================ */
 
+		/* r8외의 나머지 레지스터에 sp백업해두고 코드 진행 */
 		stmfd	sp!, {r0-r7, r9-r11}
-		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
+
+		/* reference manual p.1471. 
+		 * r0 = CLIDR, Cache Level ID Register (p.1530)
+		 */
+		mrc	p15, 1, r0, c0, c0, 1	@ read clidr 
+
+		/* The LoC value is a cache level (p.1276)
+		 * r3 = r0 & 0x7000000 (0111 0000 0000 0000 0000 0000 0000)
+		 *                      [LoC]
+		 *    = 0x2000000 (0010 0000 0000 0000 0000 0000 0000)
+		 * >>23하면 0x0000002
+		 */
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
+
+		/* pi2 cache size: L1:32K, L2:512K
+		 */
+
+		// eq 실행안됨
 		beq	finished		@ if loc is 0, then no need to clean
 		mov	r10, #0			@ start clean at cache level 0
 loop1:
-/* IAMROOT-12-B, get cache type */
+		/* IAMROOT-12-B, get cache type */
+		/* r0 = CLIDR
+		 * r2 = 0, r1 = 0 <- CType1값 
+		 */
 		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
 		mov	r1, r0, lsr r2		@ extract cache type bits from clidr
 		and	r1, r1, #7		@ mask of the bits for current cache only
+
+		/* r1<2 이면 goto skip (0:No cache, 1:Instruction cache only, p.1530 Table B4-2)
+		 */
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
+
+		/* reference manual p.1471. 
+		 * r10 = CSSELR, Cache Size Selection Register (p.1555)
+		 * MCR : Move to coprocessor from an ARM register
+		 */
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+
+		/* reference manual p.1475. 
+		 * r10 = CP15ISB, Instruction Synchronization Barrier operation (p.1749, p.389)
+		 * 위의 mcr(cp15:r10)과 다음 mrc(cp15:r1)에 명령어의존성이 없어서 
+		 * 프로세서최적화(명령어오더링, 비순차실행) 후 mrc가 먼저 실행될수도 있으므로
+		 * 다음 mrc수행을 순차적으로 보장하려고, isb로 여기까지 명령수행 보장 
+		 * 참고) isb, dmb순서보장, dsb데이터쓰는거까지보장..
+		 */
 		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+
+/* ================================================ */
+/* IAMROOT-12-B,28th(2015.10.31 22:00): End		    */
+/* ================================================ */
+
+		/* reference manual p.1471. 
+		 * r10 = CCSIDR, Cache Size ID Registers (p.1528)
+		 * MRC : Move to ARM register from a coprocessor, 
+		 */		
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
