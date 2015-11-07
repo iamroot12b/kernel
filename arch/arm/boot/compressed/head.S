@@ -2012,10 +2012,33 @@ loop1:
 /* IAMROOT-12-B,28th(2015.10.31 22:00): End		    */
 /* ================================================ */
 
+/* ================================================ */
+/* IAMROOT-12-B,29th(2015.11.07 18:30): Start	    */
+/* ================================================ */
+
 		/* reference manual p.1471. 
 		 * r10 = CCSIDR, Cache Size ID Registers (p.1528)
 		 * MRC : Move to ARM register from a coprocessor, 
-		 */		
+		 */
+
+		/* r1 = Read cache size ID register
+		 *      @ (refer to TRM p.4-46)
+		 * r2 = 0x6 (r1 & 0x7) 
+		 *		@ 0x7 => LineSize bits[2:0] : log2(number of words in cache line) - 2
+		 *      	=> (refer to TRM Table p.4-46 - CCSIDR bit assignments, arch p.1529)
+		 *      @ Data side cache line length is 64-byte
+		 *			=> CA7-MPCore L1 data memory system has the following features:
+		 *      	=> (refer to Cortex-A7 MPCore Technical Reference Manual Revision: r0p5 -> L1 Memory System > About the L1 memory system)
+		 * r4 = 0x3ff
+		 *      @ 0x3ff is immediate value (#0x3ff)
+		 * ands r4 = 3 (r1 >> 0x3)
+		 *      @ 4-way set-associative data cache
+		 *			=> CA7-MPCore L1 data memory system has the following features:
+		 *      	=> (refer to Cortex-A7 MPCore Technical Reference Manual Revision: r0p5 -> L1 Memory System > About the L1 memory system)
+		 * clz r5(Rd) => 30 (r4에서 0의 수를 구한다)
+		 *            @ (r4(Rm): 0x00000003, Rm의 값에서 앞에 오는 0의 수를 계산하여 결과를 Rd에 반환합니다.)
+		 * ands r7 => 127 (way당 index 개수) 
+		 */
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
@@ -2025,8 +2048,28 @@ loop1:
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
 loop2:
+		/* r9 = r4(0x3)
+		 *      @ 0x3 => 4-way
+		 */
 		mov	r9, r4			@ create working copy of max way size
 loop3:
+		/* L1 & L2 캐시에 대해 cache clean & invalidate를 수행하기 위한 캐시 정보(ABLS)를 구함.
+		   A: 2 (4-way, Log2(ASSOCIATIVITY))
+		   B: 64byte + 128line (L + S)
+		   L: 64byte (cache line size, Log2(LINELEN))
+		   S: 128line (Number of cache line per way, Log2(NSETS))
+		   	  @ (refer to arch p.1742 - Set/Way)
+
+		   orr r11, r10, r9, lsl r5
+		       @ r9, lsl r5 : r9(0x3) << 0x30
+			   @ r10    : r10(0x0) | r9(0xC0000000)
+			   @ r11    : 0xC0000000
+		   
+		   orr r11, r11, r7, lsl r2
+		       @ r7, lsl r2 : r7(127) << 0x6
+			   @ r11 : r11(0xC0000000) | r7(0x1FC0)
+			   @ r11 : 0xC0001FC0
+		 */
  ARM(		orr	r11, r10, r9, lsl r5	) @ factor way and cache number into r11
  ARM(		orr	r11, r11, r7, lsl r2	) @ factor index number into r11
  THUMB(		lsl	r6, r9, r5		)
@@ -2034,11 +2077,21 @@ loop3:
  THUMB(		lsl	r6, r7, r2		)
  THUMB(		orr	r11, r11, r6		) @ factor index number into r11
 		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
+		
+		/* loop 돌면서 캐시 전체에 대해 clean & invalidate를 수행함.
+		 * [3-0]-127 -> [3-0]-126 -> ... [3-0]-0 @ [3-0]:way 127~0:set(cache line)
+		 */
 		subs	r9, r9, #1		@ decrement the way
 		bge	loop3
 		subs	r7, r7, #1		@ decrement the index
 		bge	loop2
 skip:
+		/* 
+		 * L1([bit:1]0x1) -> L2[bit:2]0x2)
+		 * @ (refer to arch p.1555 - Level, bits[3:1])
+		 * r3 = 0x4
+		 *    => refer to line.1974 (mov r3, r3, lsr #23     @ left align loc bit field)
+		 */
 		add	r10, r10, #2		@ increment cache number
 		cmp	r3, r10
 		bgt	loop1
