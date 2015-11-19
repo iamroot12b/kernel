@@ -143,6 +143,14 @@ start:
 		* #function은 어디에 정의 되어있나?
 		* ex) add r1, #2
 		* ------------------------------------------------------------------- */	
+       /* -------------------------------------------------------------------
+        * start label의 symbol type을 function symbol로 set한다.
+        * 즉, start symbol를 C의 함수처럼 취급하겠다는 의미이다.
+        * start symbol은 외부참조가 불가능하며, 외부참조를 하기위해서는 ".global" 지시자를 사용해야 한다.
+        * 참고로, start symbol은 커널 이미지의 제일 처음(시작 주소)에 위치하고 있으며,
+        * bootloader에서 start label로 진입하기 위해서는,
+        * 시스템 메모리에 올라간 커널 이미지의 시작 주소를 PC에 설정하고 분기 명령어를 이용해 진입해야 한다.
+        * ------------------------------------------------------------------- */
 		.type	start,#function
 
 	   /* -------------------------------------------------------------------
@@ -174,7 +182,7 @@ start:
 	* ftp://ftp.u-aizu.ac.jp/pub/os/ 나중에 완성...
 	* ------------------------------------------------------------------- */	
 	ARM(		mov	r0, r0		)
-	
+
    /* -----------------------------------------------------------------------
 	* 암모드일경우 일에프로 이동하고 썸모드인경우
 	* ------------------------------------------------------------------- */	
@@ -462,6 +470,10 @@ not_angel:
 		* 1024*1024 = 확보할 공간 크기.
 		* 결국 이미지 끝에서부터 16k+1MB 공간을 확보하는 것 같은데 `_end - restart`를 하는 이유는?
 		* 아래 코드에서 다시 pc를 더해주므로 불필요한 연산 같은데?
+		* 커널를 풀어서 실행시킬 이미지 위치가 현재 코드의 위치보다 아래 있으면
+		* r0의 위치를 code size + page directory(16k) + DTB사이즈로 추정(1MB)
+		* 로 옮기게끔 r0에 1로 "표시"를 함
+		*
  		* -------------------------------------------------------------------------- */
  		ldrcc	r0, LC0+32
 		addcc	r0, r0, pc
@@ -476,7 +488,7 @@ not_angel:
  		blcs	cache_on /* 위에 코드가 수행되었다면 skip, 아니면 해당 구문으로 이동 
  						  * bl : link register(lr) 에 복귀 주소 저장 cache_on 이후에 오는 위치
  						  */
-/* ================================================ */
+/* ================================================ */작
 /* IAMROOT-12-B,15th(2015.08.01 22:05): End         */
 /* ================================================ */
 
@@ -501,6 +513,12 @@ restart:	adr	r0, LC0
 /* ================================================ */
 /*  IAMROOT-12-B,22th(2015.09.19 19:00): Start      */
 /* ================================================ */
+
+		/*
+		 * 2번째 restart 주석
+		 * 재배치된 LC0의 값들이 레지스터에 저장됨
+		 */
+
 		/* 왜 바로 위 ldmia 명령으로 sp를 함께 로드하지 않고 아래 ldr
 		 * 명령으로 따로 구분지어 수행하나? issue #9 */
 		/* adr r0, LC0 == r0 = 0x240
@@ -526,7 +544,19 @@ restart:	adr	r0, LC0
 		 /* 추정: 텍스트 영역의 LC0 주소를 읽어들여(adr r0, LC0) 램으로
 		  * 로드된 LC0 값과의(ldmia ...) 옵셋을 계산(sub r0, r0, r1). */
 		 /* 계산한 옵셋을 _edata와 input_data_end에 보상해주는데, 왜
-		  * data 영역만 보상해주는가? issue #10 */
+		  * data 영역만 보상해주는가? issue #10 
+		  * r0이 현재 = 0x8240 r1 = 0x240
+		  * offset이 8000이됨
+		  */
+
+		/*
+		 * 2번째 restart 주석
+		 * r0 현재 실행 위치의 LC0
+		 * r1 기존 위치의 LC0
+		 * 따라서 r0에는 기존 이미지와 이사한 zImage 간의 오프셋 크기가 저장됨
+		 * 그럼 _data 위치도 이동되고 커널 사이즈 정보를 가지고 있는 위치도 이동됨
+		 */
+
 		sub	r0, r0, r1		@ calculate the delta offset
 		add	r6, r6, r0		@ _edata
 		add	r10, r10, r0		@ inflated kernel size location
@@ -543,7 +573,7 @@ restart:	adr	r0, LC0
 		 * 사이즈는 압축된 piggy.gzip을 포함하는게 아닌가? 압축되지
 		 * 않은 커널 사이즈라니? issue #11 */
 		/* r10 : input_data_end - 4 */
-		ldrb	r9, [r10, #0]
+		ldrb	r9, [r10, #0] 
 		ldrb	lr, [r10, #1]
 		orr	r9, r9, lr, lsl #8
 		/* r9 = (lr << 8) | r9 ; 하위 2바이트 */
@@ -699,13 +729,14 @@ dtb_check_done:
  *   r10 = end of this image, including  bss/stack/malloc space if non XIP
  * We basically want:
  *   r4 - 16k page directory >= r10 -> OK
+ *   r4 >= r10 + 16k
  *   r4 + image length <= address of wont_overwrite -> OK
  * Note: the possible LSB in r4 is harmless here.
  */
 	/* 현재까지의 메모리 맵:
 		   ===================================    <-------- r10
 	          |                                   | ^
-	          |           not known yet           | | 16KiB
+	          |           Page directory (?)      | | 16KiB
 	          |                                   | v
 	           -----------------------------------  -
 	                            ~                   ^
@@ -727,6 +758,12 @@ dtb_check_done:
 	          |                                   | v
 	           -----------------------------------  -
 	   */
+
+	/*
+	 * 2번째 restart 주석
+	 * 처음 조건에서는 wont_overwrite 로 안감, r4가 r10 보다 크지 않기 때문
+	 * 두번째 조건에서는 wont_overwrite로 점
+	 */
 
 	/* 커널 풀릴 위치(r4)가 현재 이미지의 끝(r10) 보다 크다면 안전
 	   우리의 타겟보드인 라즈베리 파이의 경우 거짓(r4 < r10) */
@@ -765,15 +802,15 @@ dtb_check_done:
 		 */
 
 		/* IAMROOT-12-B
-		 * reloc_code_end: 0x00000928
-		 * restart:        0x00000188
-		 * L775: r10 = r10 + (0x928 - 0x188 + 256) & 0xFFFFFF00
+		 * reloc_code_end: 0x928
+		 * restart:        0xC0
+		 * L775: r10 = r10 + (0x928 - 0xC0 + 256) & 0xFFFFFF00
 		 * L776: r10 = r10 & 0xFFFFFF00
 		 * L779: r5  = 0xC0(restart)
 		 * L780: r5  = r5(0xC0) & 0xFFFFFFE0
 		 */
-		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)	@ r10 + 0x800
-		bic	r10, r10, #255	@ (r10 + 0x800) & 0xFF /* Align of 256byte */
+		add	r10, r10, #((reloc_code_end - restart + 256) & ~255)	@ r10 + 0x900
+		bic	r10, r10, #255	@ (r10 + 0x900) & 0xFF /* Align of 256byte */
 
 		/* Get start of code we want to copy and align it down. */
 		adr	r5, restart		@ 0xC0
@@ -812,28 +849,28 @@ dtb_check_done:
 		 */
 
 		/* 현재까지의 메모리 맵:
-		       ----------------------------------- <--- r9 (Align of 32byte)
+		           ----------------------------------- <--- r9 (Align of 32byte)
 			  |          r9 = r6 - r5            |
 			  |          r9 = (r9 + 31) & 31     |
 			  |          r9 = r9 + r10           |
 			   ----------------------------------- <--- r10 (Align f 256byte)
 			  |  (reloc_code_end - restart + 256) |
 			  |               & ~255              |
-		       ----------------------------------- 
-	          |           not known yet           | | 16KiB
-	           -----------------------------------  -
-	          |               heap                | | 64KiB
-	           -----------------------------------  -
-	          |               stack               | > 4KiB
+	           ----------------------------------- 
+              |           not known yet           | | 16KiB
+               -----------------------------------  -
+              |               heap                | | 64KiB
+               -----------------------------------  -
+              |               stack               | > 4KiB
                ----------------------------------- <--- r6 (Align of 32byte)
 			  |            pad + _edata           |
 			   -----------------------------------
-	          |               IMAGE(vmlinux)      | | ~4MiB
-	0x8000(r4) -----------------------------------  -
-	          |             PAGE_TABLE            | | 16KiB
-	0x4000     -----------------------------------  -
-	          |                                   | | 16KiB
-	           -----------------------------------  -
+              |               IMAGE(vmlinux)      | | ~4MiB
+    0x8000(r4) -----------------------------------  -
+              |             PAGE_TABLE            | | 16KiB
+    0x4000     -----------------------------------  -
+              |                                   | | 16KiB
+               -----------------------------------  -
 	   	*/
 1:		ldmdb	r6!, {r0 - r3, r10 - r12, lr}
 		cmp	r6, r5
@@ -851,10 +888,25 @@ dtb_check_done:
 /* ================================================ */
 /*  IAMROOT-12-B,24th(2015.10.03 22:00): End        */
 /* ================================================ */
-
+프
+/* ================================================ */
+/*  IAMROOT-12-B,25th(2015.10.17 15:00): Start      */
+/* ================================================ */
 
 		bl	cache_clean_flush
 
+		/* 
+		 * BSYM() - 모드전환이 일어나지 않도록 CPU instruction
+		 * 의 최하위 비트를 조정함.
+		 *
+		 * 만약 Thumb 모드일때 BSYM Macro가 없다면 최하위 비트가 
+		 * 0인 상태로 Instruction이 실행되므로 ARM모드로 원치않은
+		 * 변환이 일어나게 됨.
+		 */
+
+		/*
+		 * 여기 restart 레이블은 이사하기 전 restart 이고 r6(이사한 zImage 와의 offset)을 더하여 새로운 restart 레이블에서 시
+		 */
 		adr	r0, BSYM(restart)
 		add	r0, r0, r6
 		mov	pc, r0
@@ -873,8 +925,18 @@ wont_overwrite:
  *   r12 = GOT end
  *   sp  = stack pointer
  */
+
+		/*
+		 * r1에서 이사한 위치로 dtb 주소 재지정
+		 * orr 결과가 0이 아니기 때문에 z 플래그는 0이 아니라 not_relocated 안탐
+		 */
+
 		orrs	r1, r0, r5
 		beq	not_relocated
+
+		/*
+		 * global offset table 주소 오프셋 만큼 이동
+		 */
 
 		add	r11, r11, r0
 		add	r12, r12, r0
@@ -885,8 +947,18 @@ wont_overwrite:
 		 * we need to fix up pointers into the BSS region.
 		 * Note that the stack pointer has already been fixed up.
 		 */
+
+		/*
+		 * bss 시작 및 끝 주소도 이동
+		 */
+
 		add	r2, r2, r0
 		add	r3, r3, r0
+
+
+		/*
+		 * GOT 항목들을 반복하면서 재배치된 주소로 값을 새로 조정함(오프셋 만큼 더함)
+		 */
 
 		/*
 		 * Relocate all entries in the GOT table.
@@ -900,6 +972,11 @@ wont_overwrite:
 		str	r1, [r11], #4		@ next entry
 		cmp	r11, r12
 		blo	1b
+
+		/*
+		 * bss 주소를 dtb 정보만큼 더함
+		 * got 와 bss 사이에 dtb 정보가 위치하는 것으로 보이는데 확인 필요함
+		 */
 
 		/* bump our bss pointers too */
 		add	r2, r2, r5
@@ -920,6 +997,10 @@ wont_overwrite:
 		blo	1b
 #endif
 
+		/*
+		 * bss 영역 모두 0으로 초기화
+		 */
+
 not_relocated:	mov	r0, #0
 1:		str	r0, [r2], #4		@ clear bss
 		str	r0, [r2], #4
@@ -929,6 +1010,11 @@ not_relocated:	mov	r0, #0
 		blo	1b
 
 		/*
+		 * 0이라서 cache_on 은 안탐
+		 * bic 하는 이유는 r4 값을 0x8000 으로 되돌리기 위함
+		 */
+
+		/*
 		 * Did we skip the cache setup earlier?
 		 * That is indicated by the LSB in r4.
 		 * Do it now if so.
@@ -936,6 +1022,14 @@ not_relocated:	mov	r0, #0
 		tst	r4, #1
 		bic	r4, r4, #1
 		blne	cache_on
+
+		/*
+		 * r0 = 0x8000
+		 * r1 = sp
+		 * r2 + sp + 64k
+		 * r3 = architecture id
+		 * misc.c 로 넘어감
+		 */
 
 /*
  * The C runtime environment should now be setup sufficiently.
@@ -1888,31 +1982,138 @@ __armv6_mmu_cache_flush:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
+		/* 
+		 * r4 - 압축풀 시작 위치  
+		 * 1 - cache_on을 안했다는 표시 
+		 * 표시가 안되어 있는 상태(cache ON 상태)
+		 */
+
+/* ================================================== */
+/* IAMROOT-12-B,27th(2015.10.24 16:30): Start         */
+/* ================================================== */
 __armv7_mmu_cache_flush:
+/* r4 = decompress kernel position (0x8000)
+ * #1의 값은 해당 주소에 marking값을 비교, marking되어 있으면 cache on이 되어있지 않음.
+ */
 		tst	r4, #1
+		bne	iflush /* Jump 안됨 */
+/* raspberry pi2의 경우, marking되어 있지 않으므로 비교연산 수행 결과 값 : 0
+ * nzcvq flga중 z flag value = 1, 비교연산자 결과 값 확인하여 ne 수행x, eq 수행
+ */
 		bne	iflush
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
+/* coprocessor MMFR1값을 읽어 r10 = 0x40000000
+ * arm v7 reference manual 1622page 
+ * desc : For execution correctness, branch predictor requires no flushing at any time.
+ *				[추정]
+ *        현재 line에서는 r10 = 0x40000000, ID_MMFR1 값을 read시
+ *        cache flush를 수행할 수 없는 상태로 추정 그이유는 상위 2번째 bit만 on
+ *				b0100 값은 "desc" 참조내용을 해석컨데, hierarchical 함수 수행 후
+ *				cache flush를 수행하는 것으로 추정됨.
+ *				hierarchical 함수 분석 후 정리 필요
+*/
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
 		mov	r10, #0
 		beq	hierarchical
+		/* 만약에 Harvard architecture 라면 */
+/* IAMROOT-12-B, arm v7 arch reference manual 2532 page */
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
+
 hierarchical:
+		/* 만약에 Harvard architecture 아니라면 */
 		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+
+/* ================================================ */
+/* IAMROOT-12-B,27th(2015.10.24 22:00): End	    */
+/* ================================================ */
+/* ================================================ */
+/* IAMROOT-12-B,28th(2015.10.31 18:50): Start	    */
+/* ================================================ */
+
+		/* r8외의 나머지 레지스터에 sp백업해두고 코드 진행 */
 		stmfd	sp!, {r0-r7, r9-r11}
-		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
+
+		/* reference manual p.1471. 
+		 * r0 = CLIDR, Cache Level ID Register (p.1530)
+		 */
+		mrc	p15, 1, r0, c0, c0, 1	@ read clidr 
+
+		/* The LoC value is a cache level (p.1276)
+		 * r3 = r0 & 0x7000000 (0111 0000 0000 0000 0000 0000 0000)
+		 *                      [LoC]
+		 *    = 0x2000000 (0010 0000 0000 0000 0000 0000 0000)
+		 * >>23하면 0x0000002
+		 */
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
+
+		/* pi2 cache size: L1:32K, L2:512K
+		 */
+
+		// eq 실행안됨
 		beq	finished		@ if loc is 0, then no need to clean
 		mov	r10, #0			@ start clean at cache level 0
 loop1:
+		/* IAMROOT-12-B, get cache type */
+		/* r0 = CLIDR
+		 * r2 = 0, r1 = 0 <- CType1값 
+		 */
 		add	r2, r10, r10, lsr #1	@ work out 3x current cache level
 		mov	r1, r0, lsr r2		@ extract cache type bits from clidr
 		and	r1, r1, #7		@ mask of the bits for current cache only
+
+		/* r1<2 이면 goto skip (0:No cache, 1:Instruction cache only, p.1530 Table B4-2)
+		 */
 		cmp	r1, #2			@ see what cache we have at this level
 		blt	skip			@ skip if no cache, or just i-cache
+
+		/* reference manual p.1471. 
+		 * r10 = CSSELR, Cache Size Selection Register (p.1555)
+		 * MCR : Move to coprocessor from an ARM register
+		 */
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
+
+		/* reference manual p.1475. 
+		 * r10 = CP15ISB, Instruction Synchronization Barrier operation (p.1749, p.389)
+		 * 위의 mcr(cp15:r10)과 다음 mrc(cp15:r1)에 명령어의존성이 없어서 
+		 * 프로세서최적화(명령어오더링, 비순차실행) 후 mrc가 먼저 실행될수도 있으므로
+		 * 다음 mrc수행을 순차적으로 보장하려고, isb로 여기까지 명령수행 보장 
+		 * 참고) isb, dmb순서보장, dsb데이터쓰는거까지보장..
+		 */
 		mcr	p15, 0, r10, c7, c5, 4	@ isb to sych the new cssr&csidr
+
+/* ================================================ */
+/* IAMROOT-12-B,28th(2015.10.31 22:00): End		    */
+/* ================================================ */
+
+/* ================================================ */
+/* IAMROOT-12-B,29th(2015.11.07 18:30): Start	    */
+/* ================================================ */
+
+		/* reference manual p.1471. 
+		 * r10 = CCSIDR, Cache Size ID Registers (p.1528)
+		 * MRC : Move to ARM register from a coprocessor, 
+		 */
+
+		/* r1 = Read cache size ID register
+		 *      @ (refer to TRM p.4-46)
+		 * r2 = 0x6 (r1 & 0x7) 
+		 *		@ 0x7 => LineSize bits[2:0] : log2(number of words in cache line) - 2
+		 *      	=> (refer to TRM Table p.4-46 - CCSIDR bit assignments, arch p.1529)
+		 *      @ Data side cache line length is 64-byte
+		 *			=> CA7-MPCore L1 data memory system has the following features:
+		 *      	=> (refer to Cortex-A7 MPCore Technical Reference Manual Revision: r0p5 -> L1 Memory System > About the L1 memory system)
+		 * r4 = 0x3ff
+		 *      @ 0x3ff is immediate value (#0x3ff)
+		 * ands r4 = 3 (r1 >> 0x3)
+		 *      @ 4-way set-associative data cache
+		 *			=> CA7-MPCore L1 data memory system has the following features:
+		 *      	=> (refer to Cortex-A7 MPCore Technical Reference Manual Revision: r0p5 -> L1 Memory System > About the L1 memory system)
+		 * clz r5(Rd) => 30 (r4에서 0의 수를 구한다)
+		 *            @ (r4(Rm): 0x00000003, Rm의 값에서 앞에 오는 0의 수를 계산하여 결과를 Rd에 반환합니다.)
+		 * ands r7 => 127 (way당 index 개수) 
+		 */
 		mrc	p15, 1, r1, c0, c0, 0	@ read the new csidr
 		and	r2, r1, #7		@ extract the length of the cache lines
 		add	r2, r2, #4		@ add 4 (line length offset)
@@ -1922,8 +2123,28 @@ loop1:
 		ldr	r7, =0x7fff
 		ands	r7, r7, r1, lsr #13	@ extract max number of the index size
 loop2:
+		/* r9 = r4(0x3)
+		 *      @ 0x3 => 4-way
+		 */
 		mov	r9, r4			@ create working copy of max way size
 loop3:
+		/* L1 & L2 캐시에 대해 cache clean & invalidate를 수행하기 위한 캐시 정보(ABLS)를 구함.
+		   A: 2 (4-way, Log2(ASSOCIATIVITY))
+		   B: 64byte + 128line (L + S)
+		   L: 64byte (cache line size, Log2(LINELEN))
+		   S: 128line (Number of cache line per way, Log2(NSETS))
+		   	  @ (refer to arch p.1742 - Set/Way)
+
+		   orr r11, r10, r9, lsl r5
+		       @ r9, lsl r5 : r9(0x3) << 0x30
+			   @ r10    : r10(0x0) | r9(0xC0000000)
+			   @ r11    : 0xC0000000
+		   
+		   orr r11, r11, r7, lsl r2
+		       @ r7, lsl r2 : r7(127) << 0x6
+			   @ r11 : r11(0xC0000000) | r7(0x1FC0)
+			   @ r11 : 0xC0001FC0
+		 */
  ARM(		orr	r11, r10, r9, lsl r5	) @ factor way and cache number into r11
  ARM(		orr	r11, r11, r7, lsl r2	) @ factor index number into r11
  THUMB(		lsl	r6, r9, r5		)
@@ -1931,11 +2152,21 @@ loop3:
  THUMB(		lsl	r6, r7, r2		)
  THUMB(		orr	r11, r11, r6		) @ factor index number into r11
 		mcr	p15, 0, r11, c7, c14, 2	@ clean & invalidate by set/way
+		
+		/* loop 돌면서 캐시 전체에 대해 clean & invalidate를 수행함.
+		 * [3-0]-127 -> [3-0]-126 -> ... [3-0]-0 @ [3-0]:way 127~0:set(cache line)
+		 */
 		subs	r9, r9, #1		@ decrement the way
 		bge	loop3
 		subs	r7, r7, #1		@ decrement the index
 		bge	loop2
 skip:
+		/* 
+		 * L1([bit:1]0x1) -> L2[bit:2]0x2)
+		 * @ (refer to arch p.1555 - Level, bits[3:1])
+		 * r3 = 0x4
+		 *    => refer to line.1974 (mov r3, r3, lsr #23     @ left align loc bit field)
+		 */
 		add	r10, r10, #2		@ increment cache number
 		cmp	r3, r10
 		bgt	loop1
