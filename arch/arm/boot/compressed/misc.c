@@ -142,6 +142,13 @@ void __stack_chk_fail(void)
 extern int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
 
 
+/*
+ * r0 : 0x8000
+ * r1 : sp
+ * r2 : sp + 64K
+ * r3 : arch id
+ */
+
 void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		unsigned long free_mem_ptr_end_p,
