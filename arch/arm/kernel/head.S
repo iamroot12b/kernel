@@ -56,6 +56,10 @@
 	sub	\rd, \rd, #PG_DIR_SIZE
 	.endm
 
+/* ================================================ */
+/* IAMROOT-12-B,31th(2015.11.21 15:00): Start	    */
+/* ================================================ */
+
 /*
  * Kernel startup entry point.
  * ---------------------------
@@ -66,6 +70,11 @@
  *
  * This code is mostly position independent, so if you link the kernel at
  * 0xc0008000, you call this at __pa(0xc0008000).
+ * >>> IAMROOT-12-B
+ * 빌드시 config 파일 확인시 CONFIG_PAGE_OFFSET=0x80000000 
+ * in case of raspberry pi2, 0x80008000, root/arch/arm/include/asm -> memory.h 
+ * 파일에 __pa(0xXXXXXXXX) 함수를 통해 물리주소를 구할 수 있음. 
+ * <<<
  *
  * See linux/arch/arm/tools/mach-types for the complete list of machine
  * numbers for r1.
@@ -75,23 +84,52 @@
  * circumstances, zImage) is for.
  */
 	.arm
-
+/* >>> IAMROOT-12-B
+ * __HEAD : root/include/linux/init.h파일에 define되어 있음, 
+ * #define __HEAD		.section	".head.text","ax", "ax"의미는 allowable section
+ * compile시 section을 할당키 위해 macro로 선언되어 있음.
+ * ENTRY macro함수, input된 라벨을 .global로 선언. : ENTRY(root/include/linux -> linkage.h 파일에 선언되어 있음.
+ * stext의 label을 text start로 하고자 함.
+ *
+ * #ifndef ENTRY
+ * #define ENTRY(name) \
+ *  .globl name ASM_NL \											@ASM_NL -> ; (구분자)
+ *  ALIGN ASM_NL \														@ALIGN -> .align 4,0x90 (2의4으로 align하고, padding되는 데이터는 0x90으로 채운다
+ *																							@						[issue1] 왜 0x90으로 채울까? 0x90은 NOP
+ *																							@						b/bl 명령일 것 같은 경우, pipeline을 비우지만 compressed head.s에서 kernel head.s jump시
+ *																							@						pipeline이 깨졌을 것이라 추정되기 때문에 align 통해 padding된 데이터 처리시 pipeline을 
+ *																							@						비울 것이라 추정됨.
+ *																							@						[Issue2] : mov pc, r0 연산으로 통해 pc변경시 pipeline 처리가 어떻게 되는지 확인필요?
+ *  name:
+ * #endif
+ * <<<
+ *
+*/
 	__HEAD
 ENTRY(stext)
+
+ /* >>> IAMROOT-12-B
+  * if set config big endian type 빅엔디안일 경우면 셋엔디안을 빅에디안으로 바꾸어라. 
+  * <<<
+  */
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
+/* >>> IAMROOT-12-B
+ * THUMB -> thumb 모드 일때 수행되는 코드
+ * <<<
+*/
  THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
 
 #ifdef CONFIG_ARM_VIRT_EXT
-	bl	__hyp_stub_install
+	bl	__hyp_stub_install							@IAMROOT-12-B : root/arch/arm/kernel -> hyp-stub.s : mode값을 특정 위치에 저장하여 backup처리
 #endif
 	@ ensure svc mode and all interrupts masked
-	safe_svcmode_maskall r9
+	safe_svcmode_maskall r9						@IAMROOT-12-B : interrup masking 처리, svcmode로 설정 처리
 
-	mrc	p15, 0, r9, c0, c0		@ get processor id
+	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info 정버, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding

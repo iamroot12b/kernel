@@ -217,7 +217,7 @@ start:
 1:
 
    /* -----------------------------------------------------------------------
-	* 빅엔디안일 경우면 셋에디안을 빅에디안으로 바꾸어라.
+	* 빅엔디안일 경우면 셋엔디안을 빅에디안으로 바꾸어라.
 	* setEndian, cpu mode를 지원하기 위해서...
 	* 암책 678쪽에 있음. 630쪽에도 있음 645~ 암모드 썸모드 명령어가 사전처럼 나와있음.
 	* ------------------------------------------------------------------- */	
@@ -2324,9 +2324,12 @@ __hyp_reentry_vectors:
 		W(b)	.			@ fiq
 #endif /* CONFIG_ARM_VIRT_EXT */
 
+/* ================================================ */
+/* IAMROOT-12-B,31th(2015.11.21 15:00): Start	    */
+/* ================================================ */
 __enter_kernel:
 		mov	r0, #0			@ must be 0
- ARM(		mov	pc, r4	)		@ call kernel
+ ARM(		mov	pc, r4	)		@ call kernel							/* IAMROOT-12-B : r4 = 0x8000, root/arch/arm/kernel -> head.s jump */					
  THUMB(		bx	r4	)		@ entry point is always ARM
 
 reloc_code_end:

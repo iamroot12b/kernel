@@ -149,6 +149,11 @@ ENDPROC(lookup_processor_type)
  *	r5 = proc_info pointer in physical address space
  *	r9 = cpuid (preserved)
  */
+ /* >>> @IAMROOT-12-B
+  * root/arch/arm/kernel -> head.s __lookup_processor_type (caller)
+  * 
+  * <<<
+ */
 __lookup_processor_type:
 	adr	r3, __lookup_processor_type_data
 	ldmia	r3, {r4 - r6}
