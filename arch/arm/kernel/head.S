@@ -71,9 +71,9 @@
  * This code is mostly position independent, so if you link the kernel at
  * 0xc0008000, you call this at __pa(0xc0008000).
  * >>> IAMROOT-12-B
- * ºôµå½Ã config ÆÄÀÏ È®ÀÎ½Ã CONFIG_PAGE_OFFSET=0x80000000 
+ * ë¹Œë“œì‹œ config íŒŒì¼ í™•ì¸ì‹œ CONFIG_PAGE_OFFSET=0x80000000 
  * in case of raspberry pi2, 0x80008000, root/arch/arm/include/asm -> memory.h 
- * ÆÄÀÏ¿¡ __pa(0xXXXXXXXX) ÇÔ¼ö¸¦ ÅëÇØ ¹°¸®ÁÖ¼Ò¸¦ ±¸ÇÒ ¼ö ÀÖÀ½. 
+ * íŒŒì¼ì— __pa(0xXXXXXXXX) í•¨ìˆ˜ë¥¼ í†µí•´ ë¬¼ë¦¬ì£¼ì†Œë¥¼ êµ¬í•  ìˆ˜ ìˆìŒ. 
  * <<<
  *
  * See linux/arch/arm/tools/mach-types for the complete list of machine
@@ -85,21 +85,21 @@
  */
 	.arm
 /* >>> IAMROOT-12-B
- * __HEAD : root/include/linux/init.hÆÄÀÏ¿¡ defineµÇ¾î ÀÖÀ½, 
- * #define __HEAD		.section	".head.text","ax", "ax"ÀÇ¹Ì´Â allowable section
- * compile½Ã sectionÀ» ÇÒ´çÅ° À§ÇØ macro·Î ¼±¾ğµÇ¾î ÀÖÀ½.
- * ENTRY macroÇÔ¼ö, inputµÈ ¶óº§À» .global·Î ¼±¾ğ. : ENTRY(root/include/linux -> linkage.h ÆÄÀÏ¿¡ ¼±¾ğµÇ¾î ÀÖÀ½.
- * stextÀÇ labelÀ» text start·Î ÇÏ°íÀÚ ÇÔ.
+ * __HEAD : root/include/linux/init.híŒŒì¼ì— defineë˜ì–´ ìˆìŒ, 
+ * #define __HEAD		.section	".head.text","ax", "ax"ì˜ë¯¸ëŠ” allowable section
+ * compileì‹œ sectionì„ í• ë‹¹í‚¤ ìœ„í•´ macroë¡œ ì„ ì–¸ë˜ì–´ ìˆìŒ.
+ * ENTRY macroí•¨ìˆ˜, inputëœ ë¼ë²¨ì„ .globalë¡œ ì„ ì–¸. : ENTRY(root/include/linux -> linkage.h íŒŒì¼ì— ì„ ì–¸ë˜ì–´ ìˆìŒ.
+ * stextì˜ labelì„ text startë¡œ í•˜ê³ ì í•¨.
  *
  * #ifndef ENTRY
  * #define ENTRY(name) \
- *  .globl name ASM_NL \											@ASM_NL -> ; (±¸ºĞÀÚ)
- *  ALIGN ASM_NL \														@ALIGN -> .align 4,0x90 (2ÀÇ4À¸·Î alignÇÏ°í, paddingµÇ´Â µ¥ÀÌÅÍ´Â 0x90À¸·Î Ã¤¿î´Ù
- *																							@						[issue1] ¿Ö 0x90À¸·Î Ã¤¿ï±î? 0x90Àº NOP
- *																							@						b/bl ¸í·ÉÀÏ °Í °°Àº °æ¿ì, pipelineÀ» ºñ¿ìÁö¸¸ compressed head.s¿¡¼­ kernel head.s jump½Ã
- *																							@						pipelineÀÌ ±úÁ³À» °ÍÀÌ¶ó ÃßÁ¤µÇ±â ¶§¹®¿¡ align ÅëÇØ paddingµÈ µ¥ÀÌÅÍ Ã³¸®½Ã pipelineÀ» 
- *																							@						ºñ¿ï °ÍÀÌ¶ó ÃßÁ¤µÊ.
- *																							@						[Issue2] : mov pc, r0 ¿¬»êÀ¸·Î ÅëÇØ pcº¯°æ½Ã pipeline Ã³¸®°¡ ¾î¶»°Ô µÇ´ÂÁö È®ÀÎÇÊ¿ä?
+ *  .globl name ASM_NL \											@ASM_NL -> ; (êµ¬ë¶„ì)
+ *  ALIGN ASM_NL \														@ALIGN -> .align 4,0x90 (2ì˜4ìœ¼ë¡œ aligní•˜ê³ , paddingë˜ëŠ” ë°ì´í„°ëŠ” 0x90ìœ¼ë¡œ ì±„ìš´ë‹¤
+ *																							@						[issue1] ì™œ 0x90ìœ¼ë¡œ ì±„ìš¸ê¹Œ? 0x90ì€ NOP
+ *																							@						b/bl ëª…ë ¹ì¼ ê²ƒ ê°™ì€ ê²½ìš°, pipelineì„ ë¹„ìš°ì§€ë§Œ compressed head.sì—ì„œ kernel head.s jumpì‹œ
+ *																							@						pipelineì´ ê¹¨ì¡Œì„ ê²ƒì´ë¼ ì¶”ì •ë˜ê¸° ë•Œë¬¸ì— align í†µí•´ paddingëœ ë°ì´í„° ì²˜ë¦¬ì‹œ pipelineì„ 
+ *																							@						ë¹„ìš¸ ê²ƒì´ë¼ ì¶”ì •ë¨.
+ *																							@						[Issue2] : mov pc, r0 ì—°ì‚°ìœ¼ë¡œ í†µí•´ pcë³€ê²½ì‹œ pipeline ì²˜ë¦¬ê°€ ì–´ë–»ê²Œ ë˜ëŠ”ì§€ í™•ì¸í•„ìš”?
  *  name:
  * #endif
  * <<<
@@ -109,13 +109,13 @@
 ENTRY(stext)
 
  /* >>> IAMROOT-12-B
-  * if set config big endian type ºò¿£µğ¾ÈÀÏ °æ¿ì¸é ¼Â¿£µğ¾ÈÀ» ºò¿¡µğ¾ÈÀ¸·Î ¹Ù²Ù¾î¶ó. 
+  * if set config big endian type ë¹…ì—”ë””ì•ˆì¼ ê²½ìš°ë©´ ì…‹ì—”ë””ì•ˆì„ ë¹…ì—ë””ì•ˆìœ¼ë¡œ ë°”ê¾¸ì–´ë¼. 
   * <<<
   */
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
 /* >>> IAMROOT-12-B
- * THUMB -> thumb ¸ğµå ÀÏ¶§ ¼öÇàµÇ´Â ÄÚµå
+ * THUMB -> thumb ëª¨ë“œ ì¼ë•Œ ìˆ˜í–‰ë˜ëŠ” ì½”ë“œ
  * <<<
 */
  THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
@@ -124,12 +124,12 @@ ENTRY(stext)
  THUMB(1:			)
 
 #ifdef CONFIG_ARM_VIRT_EXT
-	bl	__hyp_stub_install							@IAMROOT-12-B : root/arch/arm/kernel -> hyp-stub.s : mode°ªÀ» Æ¯Á¤ À§Ä¡¿¡ ÀúÀåÇÏ¿© backupÃ³¸®
+	bl	__hyp_stub_install							@IAMROOT-12-B : root/arch/arm/kernel -> hyp-stub.s : modeê°’ì„ íŠ¹ì • ìœ„ì¹˜ì— ì €ì¥í•˜ì—¬ backupì²˜ë¦¬
 #endif
 	@ ensure svc mode and all interrupts masked
-	safe_svcmode_maskall r9						@IAMROOT-12-B : interrup masking Ã³¸®, svcmode·Î ¼³Á¤ Ã³¸®
+	safe_svcmode_maskall r9						@IAMROOT-12-B : interrup masking ì²˜ë¦¬, svcmodeë¡œ ì„¤ì • ì²˜ë¦¬
 
-	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info Á¤¹ö, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
+	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info ì •ë²„, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding
