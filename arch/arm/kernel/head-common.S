@@ -154,6 +154,20 @@ ENDPROC(lookup_processor_type)
   * 
   * <<<
  */
+
+ /* @IAMROOT-12-B Start 2015년 11월 28일 전반
+  * r3은 pc 기반으로 계산하기 때문에 물리주소 (0x8000 기반)이고
+  * r4는 컴파일 타임에 정해지므로 가상주소 (0x8000 0000 기반)
+  * r3 - r4 는 오프셋을 구하려면 0x8000 0000
+  * 일반화 시켜 r3 이 0xC000 0000, r4 가 0x0000 0000 베이스이면
+  * 오프셋 값이 0x4000 0000 이 나오기 때문에 일반화 가능함.
+  * 
+  * r5와 r6은 링커스크립트에 PROC_INFO 정의한 곳을 확인하면
+  * .proc.info.init 섹션을 정의한 것을 모두 모으라고 되어 있으며
+  * arch/arm/mm/proc-v7.S 에 정의된 .proc.info.init 을 확인하면
+  * PROC_INFO 구조체(arch/arm/include/asm/procinfo.h에 정의됨)에 값을 세팅하고 있음
+  * 따라서 r3과 r4에는 proc_info 구조체의 값이 세팅됨
+ */
 __lookup_processor_type:
 	adr	r3, __lookup_processor_type_data
 	ldmia	r3, {r4 - r6}
