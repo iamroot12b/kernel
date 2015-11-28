@@ -468,12 +468,23 @@ __v7_setup_stack:
 	 * Standard v7 proc info content
 	 */
 .macro __v7_proc initfunc, mm_mmuflags = 0, io_mmuflags = 0, hwcaps = 0, proc_fns = v7_processor_functions
+	/*
+	 * TODO: ALT_SMP, ALT_UP 구체적인 작동 방식
+	 */
 	ALT_SMP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_SMP | \mm_mmuflags)
 	ALT_UP(.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | \
 			PMD_SECT_AF | PMD_FLAGS_UP | \mm_mmuflags)
 	.long	PMD_TYPE_SECT | PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | PMD_SECT_AF | \io_mmuflags
+	/* W(b)의 정체 : 
+	 * Thumb-2 mode일 경우 instruction이 32bit가 되야 하므로
+	 * b instruction 에 .x(Instruction width specifier) 
+	 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0204j/Cihfddaf.html 
+	 * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHFGAAD.html
+	 *
+	 * TODO: 정확한 동작
+	 */
 	W(b)	\initfunc
 	.long	cpu_arch_name
 	.long	cpu_elf_name
