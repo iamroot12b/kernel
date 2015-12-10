@@ -129,12 +129,35 @@ ENTRY(stext)
 	@ ensure svc mode and all interrupts masked
 	safe_svcmode_maskall r9						@IAMROOT-12-B : interrup masking 처리, svcmode로 설정 처리
 
+/* ================================================ */
+/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+/* ================================================ */
+/* Coprocessor로부터 processor ID 정보를 r9로 읽어온 후,
+ * __lookup_processor_type 라벨로 분기하여,
+ * 커널이 해당 processor를 지원하는지를 확인한 후,
+ * 지원한다면, 해당 processor ID 정보를 담고있는 
+ * 구조체 배열의 해당 index의 주소 값을 r5에 저장하고,
+ * 지원하지 않는다면, r5에는 '0'값을 저장한 후,
+ * 복귀하여, r5의 값이 유효한지를 판단하여,
+ * 0이면 __error_p로 분기한다.
+ */
 	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info 정버, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
 
+/* ================================================ */
+/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+/* ================================================ */
+/* 커널이 64bit 주소 변환 기능(LPAE)을 사용하겠다고
+ * 설정한 상태에서,
+ * 실제로 해당 processor가 64bit 주소 변환 기능(LPAE)을
+ * 지원하는지를 CP15의 ID_MMFR0(c0-0,c1-4) 레지스터의 
+ * 하위 [0:3] bit의 VMSA Support를 보고 판단하는데,
+ * 값이 5인 경우는 지원하고 0~4는 LPAE를 지원하지 않으며,
+ * 0~4인 경우는 __error_lpae로 분기한다.
+ */
 #ifdef CONFIG_ARM_LPAE
 	mrc	p15, 0, r3, c0, c1, 4		@ read ID_MMFR0
 	and	r3, r3, #0xf			@ extract VMSA support
@@ -143,6 +166,15 @@ ENTRY(stext)
 	blo	__error_lpae			@ only classic page table format
 #endif
 
+/* ================================================ */
+/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+/* ================================================ */
+/*
+ * CONFIG_XIP_KERNEL is not set in Rpi-2
+ * PC 기준 2f 라벨의 주소 값을 r3에 저장하고,
+ * 커널의 가상 주소에서 r3를 빼 실제 2f 라벨의
+ * 물리 주소에 해당하는 offset 값을 구한다.
+ */
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
 	ldmia	r3, {r4, r8}

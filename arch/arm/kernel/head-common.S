@@ -167,7 +167,16 @@ ENDPROC(lookup_processor_type)
   * arch/arm/mm/proc-v7.S 에 정의된 .proc.info.init 을 확인하면
   * PROC_INFO 구조체(arch/arm/include/asm/procinfo.h에 정의됨)에 값을 세팅하고 있음
   * 따라서 r3과 r4에는 proc_info 구조체의 값이 세팅됨
- */
+  *
+  * ================================================
+  * IAMROOT-12-B,33th(2015.12.05 15:30): Start      
+  * ================================================
+  * .long . => 여기서의 .(location counter)는 컴파일 과정의 링크 단계에서 결정
+  *            된 주소값을 가리킨다.
+  * ENDPROC(__lookup_processor_type) => __lookup_processor_type을 function 타입
+  * 으로 정의한다. 참고로 .type은 type을 크기를 명시해주기 위해 .size와 pair로   * 사용한다. 
+  * r5에 해당하는 processor ID 정보를 담고있는 배열의 주소 값을 넣어준다.
+  */
 __lookup_processor_type:
 	adr	r3, __lookup_processor_type_data
 	ldmia	r3, {r4 - r6}

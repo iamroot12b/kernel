@@ -132,8 +132,7 @@ choice
 		depends on ARCH_AT91
 		depends on SOC_SAMA5
 
-	config DEBUG_BCM2835
-		bool "Kernel low-level debugging on BCM2835 PL011 UART"
+	config DEBUG_BCM2835 bool "Kernel low-level debugging on BCM2835 PL011 UART"
 		depends on ARCH_BCM2835
 		select DEBUG_UART_PL01X
 
