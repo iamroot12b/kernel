@@ -193,7 +193,7 @@ ENTRY(stext)
 	bl	__fixup_smp
 #endif
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
-	bl	__fixup_pv_table
+	bl	__fixup_a_pv_table				@IAMROOT-12-B : http://stackcanary.com/?p=616
 #endif
 	bl	__create_page_tables
 
@@ -608,9 +608,9 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	teq	r0, #0x0		@ is 1?
 	retne	lr
 
-__fixup_smp_on_up:																							@IAMROOT-12-B : uni-processor인 경우에 처리하는 함수
+__fixup_smp_on_up:														@IAMROOT-12-B : uni-processor인 경우에 처리하는 함수
 	adr	r0, 1f
-	ldmia	r0, {r3 - r5}																						@IAMROOT-12-B : save real address
+	ldmia	r0, {r3 - r5}												@IAMROOT-12-B : save real address
 	sub	r3, r0, r3
 	add	r4, r4, r3
 	add	r5, r5, r3
@@ -624,11 +624,26 @@ ENDPROC(__fixup_smp)
 
 	.pushsection .data
 	.globl	smp_on_up
+
+	/* SMP 면 1 리턴, UP 면 0 리턴으로 판단됨 */
 smp_on_up:
 	ALT_SMP(.long	1)
 	ALT_UP(.long	0)
 	.popsection
 #endif
+
+/* ================================================ */
+/* IAMROOT-12-B,35th(2015.12.19 18:00)              */
+/* ================================================ */
+/*
+ *  ALT_SMP()와 ALT_UP()는 항상 페어로 존재함.
+ *  현재 SMP 모드로 실행될 경우 ALT_SMP가 실행되거나 적용됨
+ *  UP 모드인 경우에는 아래 __do_fixup_smp_on_up 을 수행한 결과가 실행이 되기 때문에 UP 명령어가 실행됨
+ *  .pushsection name 은 현재 섹션은 섹션 스택에 잠시 넣어놓고 name에 해당하는 섹션으로 current section을 변경
+ *  .popsection은 센션 스택의 가장 위에 있는 섹션을 current section으로 만듦 
+ *  
+ *  arch/arm/include/asm/smp_plat.h:17 is_smp 함수에서 보면 smp_on_up을 사용하는데 smp_on_up은 현재 모드(SMP or UP)에 따른 리턴값으로 판단됨
+ */
 
 	.text
 __do_fixup_smp_on_up:
@@ -670,6 +685,11 @@ ENDPROC(fixup_smp)
  * can be expressed by an immediate shifter operand. The stub instruction
  * has a form of '(add|sub) rd, rn, #imm'.
  */
+
+ /* ================================================ */
+ /* IAMROOT-12-B,35th(2015.12.19 22:00) : 종료        */
+ /* ================================================ */
+
 	__HEAD
 __fixup_pv_table:
 	adr	r0, 1f
