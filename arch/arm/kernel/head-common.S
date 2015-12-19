@@ -179,12 +179,12 @@ ENDPROC(lookup_processor_type)
   */
 __lookup_processor_type:
 	adr	r3, __lookup_processor_type_data
-	ldmia	r3, {r4 - r6}
-	sub	r3, r3, r4			@ get offset between virt&phys
-	add	r5, r5, r3			@ convert virt addresses to
-	add	r6, r6, r3			@ physical address space
+	ldmia	r3, {r4 - r6}	@IAMROOT-12-B : r3 = real address, r4 = 0x80009524, r5 = processor begin address, r6 = processor(process info structure) end address
+	sub	r3, r3, r4			@ get offset between virt&phys	@IAMROOT-12-B : save offset
+	add	r5, r5, r3			@ convert virt addresses to			@IAMROOT-12-B : r5, r6 = real address
+	add	r6, r6, r3			@ physical address space			
 1:	ldmia	r5, {r3, r4}			@ value, mask
-	and	r4, r4, r9			@ mask wanted bits
+	and	r4, r4, r9			@ mask wanted bits							@IAMROOT-12-B : loop돌아서 find
 	teq	r3, r4
 	beq	2f
 	add	r5, r5, #PROC_INFO_SZ		@ sizeof(proc_info_list)

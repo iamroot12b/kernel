@@ -141,11 +141,11 @@ ENTRY(stext)
  * 복귀하여, r5의 값이 유효한지를 판단하여,
  * 0이면 __error_p로 분기한다.
  */
-	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info 정버, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
+	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info 정보, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
-	movs	r10, r5				@ invalid processor (r5=0)?
+	movs	r10, r5				@ invalid processor (r5=0)?				@IAMROOT-12-B : r5 = processor info address
  THUMB( it	eq )		@ force fixup-able long branch encoding
-	beq	__error_p			@ yes, error 'p'
+	beq	__error_p			@ yes, error 'p'										@IAMROOT-12-B : r10 = 0x00 이면 error 처리
 
 /* ================================================ */
 /* IAMROOT-12-B,33th(2015.12.05 15:30)              */
@@ -177,9 +177,9 @@ ENTRY(stext)
  */
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
-	ldmia	r3, {r4, r8}
+	ldmia	r3, {r4, r8}																	@IAMROOT-12-B : r3 = 0x8080, r4 = 0x80008080, r8 = 0x80000000
 	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
-	add	r8, r8, r4			@ PHYS_OFFSET
+	add	r8, r8, r4			@ PHYS_OFFSET										@IAMROOT-12-B : r4 = 0x80000000, r8 = 0x80000000, final r8 = 0x00
 #else
 	ldr	r8, =PLAT_PHYS_OFFSET		@ always constant in this case
 #endif
@@ -188,7 +188,7 @@ ENTRY(stext)
 	 * r1 = machine no, r2 = atags or dtb,
 	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
-	bl	__vet_atags
+	bl	__vet_atags																			@IAMROOT-12-B : atag, dtb관련 내용은 이후 소스 분석시 상세 분석 필요
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
 #endif
@@ -551,35 +551,52 @@ ENDPROC(__turn_mmu_on)
 	.popsection
 
 
-#ifdef CONFIG_SMP_ON_UP
+#ifdef CONFIG_SMP_ON_UP															@IAMROOT-12-B : 
 	__HEAD
 __fixup_smp:
-	and	r3, r9, #0x000f0000	@ architecture version
+	and	r3, r9, #0x000f0000	@ architecture version		@IAMROOT-12-B : r9 = processor id, 
 	teq	r3, #0x000f0000		@ CPU ID supported?
-	bne	__fixup_smp_on_up	@ no, assume UP
+	bne	__fixup_smp_on_up	@ no, assume UP							@IAMROOT-12-B : arm v7 arch 이전 버전일 경우에 대해 __fixup_smp_on_up 수행
+																										@IAMROOT-12-B : arm v7 arch은 uni-core가 아닌 multi core
+																										@IAMROOT-12-B : uniprocessor상에서 수행되지 않는 명령을 가능하기 위해 설정처리
+	@IAMROOT-12-B : 아래는 kconfig 내용을 발췌
+	/*
+	 * config SMP_ON_UP
+	 * bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	 * depends on SMP && !XIP_KERNEL && MMU
+	 * default y
+	 * help
+	 *   SMP kernels contain instructions which fail on non-SMP processors.
+	 *   Enabling this option allows the kernel to modify itself to make
+	 *   these instructions safe.  Disabling it allows about 1K of space
+	 *   savings.
+   * 
+	 *   If you don't know what to do here, say Y.
+	 */
 
-	bic	r3, r9, #0x00ff0000
-	bic	r3, r3, #0x0000000f	@ mask 0xff00fff0
-	mov	r4, #0x41000000
-	orr	r4, r4, #0x0000b000
-	orr	r4, r4, #0x00000020	@ val 0x4100b020
-	teq	r3, r4			@ ARM 11MPCore?
-	reteq	lr			@ yes, assume SMP
+	bic	r3, r9, #0x00ff0000														@IAMROOT-12-B : r3 = 0x4100xxxx
+	bic	r3, r3, #0x0000000f	@ mask 0xff00fff0					@IAMROOT-12-B : r3 = 0x4100xxx0
+	mov	r4, #0x41000000																@IAMROOT-12-B : r4 = 0x41000000
+	orr	r4, r4, #0x0000b000														@IAMROOT-12-B : 왜 한번에 하면 되지, 세번으로 할까? 32bit processor에서 명령어,데이터를 모두 32bit에 담을 수 없으니
+																										@IAMROOT-12-B : 세번을 나누어서 사용하지 않았을까... (추정)
+	orr	r4, r4, #0x00000020	@ val 0x4100b020					@IAMROOT-12-B : r4 = 0x4100b020
+	teq	r3, r4			@ ARM 11MPCore?										@IAMROOT-12-B : Use the TEQ instruction to test if two values are equal, without affecting the V or C flags (as CMP does).
+	reteq	lr			@ yes, assume SMP										@IAMROOT-12-B : zero flag set이면 11MP core면 리턴 처리
 
-	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
-	and	r0, r0, #0xc0000000	@ multiprocessing extensions and
-	teq	r0, #0x80000000		@ not part of a uniprocessor system?
-	bne    __fixup_smp_on_up	@ no, assume UP
+	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR												@IAMROOT-12-B : MPIDR(Multiprocessor Affinity Register)
+	and	r0, r0, #0xc0000000	@ multiprocessing extensions and		
+	teq	r0, #0x80000000		@ not part of a uniprocessor system?		@IAMROOT-12-B : [31 bit] : RAO (read as one), [30 bit] : 1 (uniprocessor) 0 (multi-processor)
+	bne    __fixup_smp_on_up	@ no, assume UP											@IAMROOT-12-B : uni-processor면 수행, multi면 skip
 
 	@ Core indicates it is SMP. Check for Aegis SOC where a single
 	@ Cortex-A9 CPU is present but SMP operations fault.
 	mov	r4, #0x41000000
 	orr	r4, r4, #0x0000c000
 	orr	r4, r4, #0x00000090
-	teq	r3, r4			@ Check for ARM Cortex-A9
+	teq	r3, r4			@ Check for ARM Cortex-A9											@IAMROOT-12-B : ARM Cortex-A9일 경우, 결과값은 0
 	retne	lr			@ Not ARM Cortex-A9,
 
-	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the
+	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the @IAMROOT-12-B : Aegis SOC 예외 처리 코드되는 것으로 추정
 	@ below address check will need to be #ifdef'd or equivalent
 	@ for the Aegis platform.
 	mrc	p15, 4, r0, c15, c0	@ get SCU base address
@@ -591,9 +608,9 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	teq	r0, #0x0		@ is 1?
 	retne	lr
 
-__fixup_smp_on_up:
+__fixup_smp_on_up:																							@IAMROOT-12-B : uni-processor인 경우에 처리하는 함수
 	adr	r0, 1f
-	ldmia	r0, {r3 - r5}
+	ldmia	r0, {r3 - r5}																						@IAMROOT-12-B : save real address
 	sub	r3, r0, r3
 	add	r4, r4, r3
 	add	r5, r5, r3
@@ -615,7 +632,7 @@ smp_on_up:
 
 	.text
 __do_fixup_smp_on_up:
-	cmp	r4, r5
+	cmp	r4, r5									@IAMROOT-12-B : __smpalt_begin ~ __smpalt_end까지 loop돌면서 처리
 	reths	lr
 	ldmia	r4!, {r0, r6}
  ARM(	str	r6, [r0, r3]	)

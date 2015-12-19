@@ -28,7 +28,7 @@
 	*(.hyp.idmap.text)						\
 	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
 
-#ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_HOTPLUG_CPU						@[Charles] : not config for raspberry pi2
 #define ARM_CPU_DISCARD(x)
 #define ARM_CPU_KEEP(x)		x
 #else
