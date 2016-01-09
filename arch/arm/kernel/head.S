@@ -40,7 +40,7 @@
 #endif
 
 #ifdef CONFIG_ARM_LPAE
-	/* LPAE requires an additional page for the PGD */
+/* LPAE requires an additional page for the PGD */
 #define PG_DIR_SIZE	0x5000
 #define PMD_ORDER	3
 #else
@@ -48,13 +48,13 @@
 #define PMD_ORDER	2
 #endif
 
-	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
+.globl	swapper_pg_dir
+.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
 
-	.macro	pgtbl, rd, phys
-	add	\rd, \phys, #TEXT_OFFSET
-	sub	\rd, \rd, #PG_DIR_SIZE
-	.endm
+.macro	pgtbl, rd, phys
+add	\rd, \phys, #TEXT_OFFSET
+sub	\rd, \rd, #PG_DIR_SIZE
+.endm
 
 /* ================================================ */
 /* IAMROOT-12-B,31th(2015.11.21 15:00): Start	    */
@@ -83,7 +83,7 @@
  * crap here - that's what the boot loader (or in extreme, well justified
  * circumstances, zImage) is for.
  */
-	.arm
+.arm
 /* >>> IAMROOT-12-B
  * __HEAD : root/include/linux/init.h파일에 define되어 있음, 
  * #define __HEAD		.section	".head.text","ax", "ax"의미는 allowable section
@@ -104,24 +104,24 @@
  * #endif
  * <<<
  *
-*/
+ */
 	__HEAD
 ENTRY(stext)
 
- /* >>> IAMROOT-12-B
-  * if set config big endian type 빅엔디안일 경우면 셋엔디안을 빅에디안으로 바꾸어라. 
-  * <<<
-  */
- ARM_BE8(setend	be )			@ ensure we are in BE8 mode
+	/* >>> IAMROOT-12-B
+	 * if set config big endian type 빅엔디안일 경우면 셋엔디안을 빅에디안으로 바꾸어라. 
+	 * <<<
+	 */
+	ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
-/* >>> IAMROOT-12-B
- * THUMB -> thumb 모드 일때 수행되는 코드
- * <<<
-*/
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
- THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
- THUMB(1:			)
+	/* >>> IAMROOT-12-B
+	 * THUMB -> thumb 모드 일때 수행되는 코드
+	 * <<<
+	 */
+	THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
+	THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+	THUMB(	.thumb			)	@ switch to Thumb now.
+THUMB(1:			)
 
 #ifdef CONFIG_ARM_VIRT_EXT
 	bl	__hyp_stub_install							@IAMROOT-12-B : root/arch/arm/kernel -> hyp-stub.s : mode값을 특정 위치에 저장하여 backup처리
@@ -129,56 +129,56 @@ ENTRY(stext)
 	@ ensure svc mode and all interrupts masked
 	safe_svcmode_maskall r9						@IAMROOT-12-B : interrup masking 처리, svcmode로 설정 처리
 
-/* ================================================ */
-/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
-/* ================================================ */
-/* Coprocessor로부터 processor ID 정보를 r9로 읽어온 후,
- * __lookup_processor_type 라벨로 분기하여,
- * 커널이 해당 processor를 지원하는지를 확인한 후,
- * 지원한다면, 해당 processor ID 정보를 담고있는 
- * 구조체 배열의 해당 index의 주소 값을 r5에 저장하고,
- * 지원하지 않는다면, r5에는 '0'값을 저장한 후,
- * 복귀하여, r5의 값이 유효한지를 판단하여,
- * 0이면 __error_p로 분기한다.
- */
+	/* ================================================ */
+	/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+	/* ================================================ */
+	/* Coprocessor로부터 processor ID 정보를 r9로 읽어온 후,
+	 * __lookup_processor_type 라벨로 분기하여,
+	 * 커널이 해당 processor를 지원하는지를 확인한 후,
+	 * 지원한다면, 해당 processor ID 정보를 담고있는 
+	 * 구조체 배열의 해당 index의 주소 값을 r5에 저장하고,
+	 * 지원하지 않는다면, r5에는 '0'값을 저장한 후,
+	 * 복귀하여, r5의 값이 유효한지를 판단하여,
+	 * 0이면 __error_p로 분기한다.
+	 */
 	mrc	p15, 0, r9, c0, c0		@ get processor id	@IAMROOT-12-B : r9 = cpu info 정보, DDI0406C_b_armV7_AR_architecture_reference_manual.pdf page 1648
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?				@IAMROOT-12-B : r5 = processor info address
- THUMB( it	eq )		@ force fixup-able long branch encoding
+	THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'										@IAMROOT-12-B : r10 = 0x00 이면 error 처리
 
-/* ================================================ */
-/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
-/* ================================================ */
-/* 커널이 64bit 주소 변환 기능(LPAE)을 사용하겠다고
- * 설정한 상태에서,
- * 실제로 해당 processor가 64bit 주소 변환 기능(LPAE)을
- * 지원하는지를 CP15의 ID_MMFR0(c0-0,c1-4) 레지스터의 
- * 하위 [0:3] bit의 VMSA Support를 보고 판단하는데,
- * 값이 5인 경우는 지원하고 0~4는 LPAE를 지원하지 않으며,
- * 0~4인 경우는 __error_lpae로 분기한다.
- */
+	/* ================================================ */
+	/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+	/* ================================================ */
+	/* 커널이 64bit 주소 변환 기능(LPAE)을 사용하겠다고
+	 * 설정한 상태에서,
+	 * 실제로 해당 processor가 64bit 주소 변환 기능(LPAE)을
+	 * 지원하는지를 CP15의 ID_MMFR0(c0-0,c1-4) 레지스터의 
+	 * 하위 [0:3] bit의 VMSA Support를 보고 판단하는데,
+	 * 값이 5인 경우는 지원하고 0~4는 LPAE를 지원하지 않으며,
+	 * 0~4인 경우는 __error_lpae로 분기한다.
+	 */
 #ifdef CONFIG_ARM_LPAE
 	mrc	p15, 0, r3, c0, c1, 4		@ read ID_MMFR0
 	and	r3, r3, #0xf			@ extract VMSA support
 	cmp	r3, #5				@ long-descriptor translation table format?
- THUMB( it	lo )				@ force fixup-able long branch encoding
+	THUMB( it	lo )				@ force fixup-able long branch encoding
 	blo	__error_lpae			@ only classic page table format
 #endif
 
-/* ================================================ */
-/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
-/* ================================================ */
-/*
- * CONFIG_XIP_KERNEL is not set in Rpi-2
- * PC 기준 2f 라벨의 주소 값을 r3에 저장하고,
- * 커널의 가상 주소에서 r3를 빼 실제 2f 라벨의
- * 물리 주소에 해당하는 offset 값을 구한다.
- */
+	/* ================================================ */
+	/* IAMROOT-12-B,33th(2015.12.05 15:30)              */
+	/* ================================================ */
+	/*
+	 * CONFIG_XIP_KERNEL is not set in Rpi-2
+	 * PC 기준 2f 라벨의 주소 값을 r3에 저장하고,
+	 * 커널의 가상 주소에서 r3를 빼 실제 2f 라벨의
+	 * 물리 주소에 해당하는 offset 값을 구한다.
+	 */
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
 	ldmia	r3, {r4, r8}																	@IAMROOT-12-B : r3 = 0x8080, r4 = 0x80008080, r8 = 0x80000000
-	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
+sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
 	add	r8, r8, r4			@ PHYS_OFFSET										@IAMROOT-12-B : r4 = 0x80000000, r8 = 0x80000000, final r8 = 0x00
 #else
 	ldr	r8, =PLAT_PHYS_OFFSET		@ always constant in this case
@@ -193,7 +193,7 @@ ENTRY(stext)
 	bl	__fixup_smp
 #endif
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
-	bl	__fixup_a_pv_table				@IAMROOT-12-B : http://stackcanary.com/?p=616
+	bl	__fixup_pv_table				@IAMROOT-12-B : http://stackcanary.com/?p=616
 #endif
 	bl	__create_page_tables
 
@@ -205,32 +205,32 @@ ENTRY(stext)
 	 * turned on, and r0 will hold the CPU control register value.
 	 */
 	ldr	r13, =__mmap_switched		@ address to jump to after
-						@ mmu has been enabled
+	@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
-1:	b	__enable_mmu
+	ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
+	THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+THUMB(	ret	r12				)
+	1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
 #ifndef CONFIG_XIP_KERNEL
-2:	.long	.
+	2:	.long	.
 	.long	PAGE_OFFSET
 #endif
 
-/*
- * Setup the initial page tables.  We only setup the barest
- * amount which are required to get the kernel running, which
- * generally means mapping in the kernel code.
- *
- * r8 = phys_offset, r9 = cpuid, r10 = procinfo
- *
- * Returns:
- *  r0, r3, r5-r7 corrupted
- *  r4 = page table (see ARCH_PGD_SHIFT in asm/memory.h)
- */
-__create_page_tables:
+	/*
+	 * Setup the initial page tables.  We only setup the barest
+	 * amount which are required to get the kernel running, which
+	 * generally means mapping in the kernel code.
+	 *
+	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
+	 *
+	 * Returns:
+	 *  r0, r3, r5-r7 corrupted
+	 *  r4 = page table (see ARCH_PGD_SHIFT in asm/memory.h)
+	 */
+	__create_page_tables:
 	pgtbl	r4, r8				@ page table address
 
 	/*
@@ -239,7 +239,7 @@ __create_page_tables:
 	mov	r0, r4
 	mov	r3, #0
 	add	r6, r0, #PG_DIR_SIZE
-1:	str	r3, [r0], #4
+	1:	str	r3, [r0], #4
 	str	r3, [r0], #4
 	str	r3, [r0], #4
 	str	r3, [r0], #4
@@ -256,7 +256,7 @@ __create_page_tables:
 	orr	r3, r3, #3			@ PGD block type
 	mov	r6, #4				@ PTRS_PER_PGD
 	mov	r7, #1 << (55 - 32)		@ L_PGD_SWAPPER
-1:
+	1:
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	str	r7, [r0], #4			@ set top PGD entry bits
 	str	r3, [r0], #4			@ set bottom PGD entry bits
@@ -288,7 +288,7 @@ __create_page_tables:
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
-1:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
+	1:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
 	str	r3, [r4, r5, lsl #PMD_ORDER]	@ identity mapping
 	cmp	r5, r6
 	addlo	r5, r5, #1			@ next section
@@ -298,10 +298,10 @@ __create_page_tables:
 	 * Map our RAM from the start to the end of the kernel .bss section.
 	 */
 	add	r0, r4, #PAGE_OFFSET >> (SECTION_SHIFT - PMD_ORDER)
-	ldr	r6, =(_end - 1)
+ldr	r6, =(_end - 1)
 	orr	r3, r8, r7
-	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
-1:	str	r3, [r0], #1 << PMD_ORDER
+add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
+	1:	str	r3, [r0], #1 << PMD_ORDER
 	add	r3, r3, #1 << SECTION_SHIFT
 	cmp	r0, r6
 	bls	1b
@@ -314,12 +314,12 @@ __create_page_tables:
 	mov	r3, pc
 	mov	r3, r3, lsr #SECTION_SHIFT
 	orr	r3, r7, r3, lsl #SECTION_SHIFT
-	add	r0, r4,  #(XIP_START & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
+add	r0, r4,  #(XIP_START & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
 	str	r3, [r0, #((XIP_START & 0x00f00000) >> SECTION_SHIFT) << PMD_ORDER]!
-	ldr	r6, =(_edata_loc - 1)
+ldr	r6, =(_edata_loc - 1)
 	add	r0, r0, #1 << PMD_ORDER
-	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
-1:	cmp	r0, r6
+add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
+	1:	cmp	r0, r6
 	add	r3, r3, #1 << SECTION_SHIFT
 	strls	r3, [r0], #1 << PMD_ORDER
 	bls	1b
@@ -333,7 +333,7 @@ __create_page_tables:
 	movs	r0, r0, lsl #SECTION_SHIFT
 	subne	r3, r0, r8
 	addne	r3, r3, #PAGE_OFFSET
-	addne	r3, r4, r3, lsr #(SECTION_SHIFT - PMD_ORDER)
+addne	r3, r4, r3, lsr #(SECTION_SHIFT - PMD_ORDER)
 	orrne	r6, r7, r0
 	strne	r6, [r3], #1 << PMD_ORDER
 	addne	r6, r6, #1 << SECTION_SHIFT
@@ -341,7 +341,7 @@ __create_page_tables:
 
 #if defined(CONFIG_ARM_LPAE) && defined(CONFIG_CPU_ENDIAN_BE8)
 	sub	r4, r4, #4			@ Fixup page table pointer
-						@ for 64-bit descriptors
+	@ for 64-bit descriptors
 #endif
 
 #ifdef CONFIG_DEBUG_LL
@@ -384,7 +384,7 @@ __create_page_tables:
 	 * If we're using the NetWinder or CATS, we also need to map
 	 * in the 16550-type serial port for the debug messages
 	 */
-	add	r0, r4, #0xff000000 >> (SECTION_SHIFT - PMD_ORDER)
+add	r0, r4, #0xff000000 >> (SECTION_SHIFT - PMD_ORDER)
 	orr	r3, r7, #0x7c000000
 	str	r3, [r0]
 #endif
@@ -394,10 +394,10 @@ __create_page_tables:
 	 * Similar reasons here - for debug.  This is
 	 * only for Acorn RiscPC architectures.
 	 */
-	add	r0, r4, #0x02000000 >> (SECTION_SHIFT - PMD_ORDER)
+add	r0, r4, #0x02000000 >> (SECTION_SHIFT - PMD_ORDER)
 	orr	r3, r7, #0x02000000
 	str	r3, [r0]
-	add	r0, r4, #0xd8000000 >> (SECTION_SHIFT - PMD_ORDER)
+add	r0, r4, #0xd8000000 >> (SECTION_SHIFT - PMD_ORDER)
 	str	r3, [r0]
 #endif
 #endif
@@ -409,7 +409,7 @@ __create_page_tables:
 ENDPROC(__create_page_tables)
 	.ltorg
 	.align
-__turn_mmu_on_loc:
+	__turn_mmu_on_loc:
 	.long	.
 	.long	__turn_mmu_on
 	.long	__turn_mmu_on_end
@@ -418,10 +418,10 @@ __turn_mmu_on_loc:
 	.text
 ENTRY(secondary_startup_arm)
 	.arm
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
- THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
- THUMB(1:			)
+	THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+	THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+	THUMB(	.thumb			)	@ switch to Thumb now.
+	THUMB(1:			)
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
@@ -431,7 +431,7 @@ ENTRY(secondary_startup)
 	 * as it has already been validated by the primary processor.
 	 */
 
- ARM_BE8(setend	be)				@ ensure we are in BE8 mode
+	ARM_BE8(setend	be)				@ ensure we are in BE8 mode
 
 #ifdef CONFIG_ARM_VIRT_EXT
 	bl	__hyp_stub_install_secondary
@@ -442,7 +442,7 @@ ENTRY(secondary_startup)
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
 	moveq	r0, #'p'			@ yes, error 'p'
- THUMB( it	eq )		@ force fixup-able long branch encoding
+	THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p
 
 	/*
@@ -456,11 +456,11 @@ ENTRY(secondary_startup)
 	ldr	r8, [r7, lr]			@ get secondary_data.swapper_pg_dir
 	adr	lr, BSYM(__enable_mmu)		@ return address
 	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
-						  @ (return control reg)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
-ENDPROC(secondary_startup)
+	ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
+	@ (return control reg)
+	THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+	THUMB(	ret	r12				)
+	ENDPROC(secondary_startup)
 ENDPROC(secondary_startup_arm)
 
 	/*
@@ -475,7 +475,7 @@ ENDPROC(__secondary_switched)
 	.align
 
 	.type	__secondary_data, %object
-__secondary_data:
+	__secondary_data:
 	.long	.
 	.long	secondary_data
 	.long	__secondary_switched
@@ -483,19 +483,19 @@ __secondary_data:
 
 
 
-/*
- * Setup common bits before finally enabling the MMU.  Essentially
- * this is just loading the page table pointer and domain access
- * registers.
- *
- *  r0  = cp#15 control register
- *  r1  = machine ID
- *  r2  = atags or dtb pointer
- *  r4  = page table (see ARCH_PGD_SHIFT in asm/memory.h)
- *  r9  = processor ID
- *  r13 = *virtual* address to jump to upon completion
- */
-__enable_mmu:
+	/*
+	 * Setup common bits before finally enabling the MMU.  Essentially
+	 * this is just loading the page table pointer and domain access
+	 * registers.
+	 *
+	 *  r0  = cp#15 control register
+	 *  r1  = machine ID
+	 *  r2  = atags or dtb pointer
+	 *  r4  = page table (see ARCH_PGD_SHIFT in asm/memory.h)
+	 *  r9  = processor ID
+	 *  r13 = *virtual* address to jump to upon completion
+	 */
+	__enable_mmu:
 #if defined(CONFIG_ALIGNMENT_TRAP) && __LINUX_ARM_ARCH__ < 6
 	orr	r0, r0, #CR_A
 #else
@@ -512,29 +512,29 @@ __enable_mmu:
 #endif
 #ifndef CONFIG_ARM_LPAE
 	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
+			domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+			domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
+			domain_val(DOMAIN_IO, DOMAIN_CLIENT))
 	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 #endif
 	b	__turn_mmu_on
 ENDPROC(__enable_mmu)
 
-/*
- * Enable the MMU.  This completely changes the structure of the visible
- * memory space.  You will not be able to trace execution through this.
- * If you have an enquiry about this, *please* check the linux-arm-kernel
- * mailing list archives BEFORE sending another post to the list.
- *
- *  r0  = cp#15 control register
- *  r1  = machine ID
- *  r2  = atags or dtb pointer
- *  r9  = processor ID
- *  r13 = *virtual* address to jump to upon completion
- *
- * other registers depend on the function called upon completion
- */
+	/*
+	 * Enable the MMU.  This completely changes the structure of the visible
+	 * memory space.  You will not be able to trace execution through this.
+	 * If you have an enquiry about this, *please* check the linux-arm-kernel
+	 * mailing list archives BEFORE sending another post to the list.
+	 *
+	 *  r0  = cp#15 control register
+	 *  r1  = machine ID
+	 *  r2  = atags or dtb pointer
+	 *  r9  = processor ID
+	 *  r13 = *virtual* address to jump to upon completion
+	 *
+	 * other registers depend on the function called upon completion
+	 */
 	.align	5
 	.pushsection	.idmap.text, "ax"
 ENTRY(__turn_mmu_on)
@@ -546,7 +546,7 @@ ENTRY(__turn_mmu_on)
 	mov	r3, r3
 	mov	r3, r13
 	ret	r3
-__turn_mmu_on_end:
+	__turn_mmu_on_end:
 ENDPROC(__turn_mmu_on)
 	.popsection
 
@@ -554,12 +554,15 @@ ENDPROC(__turn_mmu_on)
 #ifdef CONFIG_SMP_ON_UP															@IAMROOT-12-B : 
 	__HEAD
 __fixup_smp:
-	and	r3, r9, #0x000f0000	@ architecture version		@IAMROOT-12-B : r9 = processor id, 
+	and	r3, r9, #0x000f0000	@ architecture version		
+	/* IAMROOT-12-B : r9 = processor id, */
 	teq	r3, #0x000f0000		@ CPU ID supported?
-	bne	__fixup_smp_on_up	@ no, assume UP							@IAMROOT-12-B : arm v7 arch 이전 버전일 경우에 대해 __fixup_smp_on_up 수행
-																										@IAMROOT-12-B : arm v7 arch은 uni-core가 아닌 multi core
-																										@IAMROOT-12-B : uniprocessor상에서 수행되지 않는 명령을 가능하기 위해 설정처리
-	@IAMROOT-12-B : 아래는 kconfig 내용을 발췌
+	bne	__fixup_smp_on_up	@ no, assume UP			
+	/* IAMROOT-12-B : arm v7 arch 이전 버전일 경우에 대해 __fixup_smp_on_up 수행되지
+	 * IAMROOT-12-B : arm v7 arch은 uni-core가 아닌 multi core
+	 * IAMROOT-12-B : uniprocessor상에서 수행되지 않는 명령을 가능하기 위해 설정처리
+	 * IAMROOT-12-B : 아래는 kconfig 내용을 발췌 */
+
 	/*
 	 * config SMP_ON_UP
 	 * bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
@@ -570,33 +573,47 @@ __fixup_smp:
 	 *   Enabling this option allows the kernel to modify itself to make
 	 *   these instructions safe.  Disabling it allows about 1K of space
 	 *   savings.
-   * 
 	 *   If you don't know what to do here, say Y.
 	 */
 
-	bic	r3, r9, #0x00ff0000														@IAMROOT-12-B : r3 = 0x4100xxxx
-	bic	r3, r3, #0x0000000f	@ mask 0xff00fff0					@IAMROOT-12-B : r3 = 0x4100xxx0
-	mov	r4, #0x41000000																@IAMROOT-12-B : r4 = 0x41000000
-	orr	r4, r4, #0x0000b000														@IAMROOT-12-B : 왜 한번에 하면 되지, 세번으로 할까? 32bit processor에서 명령어,데이터를 모두 32bit에 담을 수 없으니
-																										@IAMROOT-12-B : 세번을 나누어서 사용하지 않았을까... (추정)
-	orr	r4, r4, #0x00000020	@ val 0x4100b020					@IAMROOT-12-B : r4 = 0x4100b020
-	teq	r3, r4			@ ARM 11MPCore?										@IAMROOT-12-B : Use the TEQ instruction to test if two values are equal, without affecting the V or C flags (as CMP does).
-	reteq	lr			@ yes, assume SMP										@IAMROOT-12-B : zero flag set이면 11MP core면 리턴 처리
-
-	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR												@IAMROOT-12-B : MPIDR(Multiprocessor Affinity Register)
+	bic	r3, r9, #0x00ff0000	
+	/* IAMROOT-12-B : r3 = 0x4100xxxx */
+	bic	r3, r3, #0x0000000f	@ mask 0xff00fff0					
+	/* IAMROOT-12-B : r3 = 0x4100xxx0 */
+	mov	r4, #0x410000000 
+	/* IAMROOT-12-B : r4 = 0x41000000 */
+	orr	r4, r4, #0x0000b000
+	/* IAMROOT-12-B : 왜 한번에 하면 되지, 
+	 * 세번으로 할까? 32bit processor에서 명령어,데이터를 모두 32bit에 담을 수 없으니
+	 * IAMROOT-12-B : 세번을 나누어서 사용하지 않았을까... (추정)
+	 */
+	orr	r4, r4, #0x00000020	@ val 0x4100b020					
+	/* IAMROOT-12-B : r4 = 0x4100b020 */
+	teq	r3, r4			@ ARM 11MPCore?
+	/* IAMROOT-12-B : Use the TEQ instruction to test 
+	 * if two values are equal, without affecting the V or C flags (as CMP does). */
+	reteq	lr			@ yes, assume SMP
+	/* IAMROOT-12-B : zero flag set이면 11MP core면 리턴 처리 */
+	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
+	/* IAMROOT-12-B : MPIDR(Multiprocessor Affinity Register) */
 	and	r0, r0, #0xc0000000	@ multiprocessing extensions and		
-	teq	r0, #0x80000000		@ not part of a uniprocessor system?		@IAMROOT-12-B : [31 bit] : RAO (read as one), [30 bit] : 1 (uniprocessor) 0 (multi-processor)
-	bne    __fixup_smp_on_up	@ no, assume UP											@IAMROOT-12-B : uni-processor면 수행, multi면 skip
+	teq	r0, #0x80000000		@ not part of a uniprocessor system?		
+	/* IAMROOT-12-B : [31 bit] : RAO (read as one), [30 bit] 
+	 * : 1 (uniprocessor) 0 (multi-processor) */
+	bne    __fixup_smp_on_up	@ no, assume UP
+	/* IAMROOT-12-B : uni-processor면 수행, multi면 skip */
 
 	@ Core indicates it is SMP. Check for Aegis SOC where a single
 	@ Cortex-A9 CPU is present but SMP operations fault.
 	mov	r4, #0x41000000
 	orr	r4, r4, #0x0000c000
 	orr	r4, r4, #0x00000090
-	teq	r3, r4			@ Check for ARM Cortex-A9											@IAMROOT-12-B : ARM Cortex-A9일 경우, 결과값은 0
+	teq	r3, r4			@ Check for ARM Cortex-A9
+	/* IAMROOT-12-B : ARM Cortex-A9일 경우, 결과값은 0 */
 	retne	lr			@ Not ARM Cortex-A9,
 
-	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the @IAMROOT-12-B : Aegis SOC 예외 처리 코드되는 것으로 추정
+	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the 
+	/* IAMROOT-12-B : Aegis SOC 예외 처리 코드되는 것으로 추정 */
 	@ below address check will need to be #ifdef'd or equivalent
 	@ for the Aegis platform.
 	mrc	p15, 4, r0, c15, c0	@ get SCU base address
@@ -608,9 +625,11 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	teq	r0, #0x0		@ is 1?
 	retne	lr
 
-__fixup_smp_on_up:														@IAMROOT-12-B : uni-processor인 경우에 처리하는 함수
+__fixup_smp_on_up:
+	/* IAMROOT-12-B : uni-processor인 경우에 처리하는 함수 */
 	adr	r0, 1f
-	ldmia	r0, {r3 - r5}												@IAMROOT-12-B : save real address
+	ldmia	r0, {r3 - r5}
+	/* IAMROOT-12-B : save real address */
 	sub	r3, r0, r3
 	add	r4, r4, r3
 	add	r5, r5, r3
@@ -690,16 +709,23 @@ ENDPROC(fixup_smp)
  /* IAMROOT-12-B,35th(2015.12.19 22:00) : 종료        */
  /* ================================================ */
 
+ /* ================================================ */
+ /* IAMROOT-12-B,36th(2016.01.09 18:00) : 시작       */
+ /* ================================================ */
 	__HEAD
 __fixup_pv_table:
 	adr	r0, 1f
 	ldmia	r0, {r3-r7}
+	/* MVN - 비트 단위 논리연산(NOT) */
+	/* IP = 0xFFFFFFFF */
 	mvn	ip, #0
 	subs	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
 	add	r4, r4, r3	@ adjust table start address
 	add	r5, r5, r3	@ adjust table end address
-	add	r6, r6, r3	@ adjust __pv_phys_pfn_offset address
 	add	r7, r7, r3	@ adjust __pv_offset address
+ /* ================================================			*/
+ /* IAMROOT-12-B,36th(2016.01.09 22:00) : 진행중 - 의미 불명확		*/
+ /* ================================================			*/
 	mov	r0, r8, lsr #PAGE_SHIFT	@ convert to PFN
 	str	r0, [r6]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
 	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
