@@ -195,6 +195,9 @@ sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 	bl	__fixup_pv_table				@IAMROOT-12-B : http://stackcanary.com/?p=616
 #endif
+	/* ================================================ */
+	/* IAMROOT-12-B,39th(2016.01.16 19:00)              */
+	/* ================================================ */
 	bl	__create_page_tables
 
 	/*
@@ -230,7 +233,7 @@ ENDPROC(stext)
 	 *  r0, r3, r5-r7 corrupted
 	 *  r4 = page table (see ARCH_PGD_SHIFT in asm/memory.h)
 	 */
-	__create_page_tables:
+__create_page_tables:
 	pgtbl	r4, r8				@ page table address
 
 	/*
@@ -239,7 +242,7 @@ ENDPROC(stext)
 	mov	r0, r4
 	mov	r3, #0
 	add	r6, r0, #PG_DIR_SIZE
-	1:	str	r3, [r0], #4
+1:	str	r3, [r0], #4
 	str	r3, [r0], #4
 	str	r3, [r0], #4
 	str	r3, [r0], #4
@@ -724,7 +727,7 @@ __fixup_pv_table:
 	add	r5, r5, r3	@ adjust table end address
 	add	r7, r7, r3	@ adjust __pv_offset address
  /* ================================================			*/
- /* IAMROOT-12-B,36th(2016.01.09 22:00) : 진행중 - 의미 불명확		*/
+ /* IAMROOT-12-B,38th(2016.01.09 22:00) : 진행중 - 의미 불명확		*/
  /* ================================================			*/
 	mov	r0, r8, lsr #PAGE_SHIFT	@ convert to PFN
 	str	r0, [r6]	@ save computed PHYS_OFFSET to __pv_phys_pfn_offset
